@@ -2,7 +2,6 @@ package j25.ui;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
-import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
@@ -69,7 +68,7 @@ public class SearchUI extends JFrame {
             database = lines.stream()
                 .skip(1)
                 .filter(l -> !l.trim().isEmpty())
-                .map(line -> line.split("[,;]"))
+                .map(line -> line.toUpperCase().split("[,;]"))
                 .toList();
         } catch (IOException e) {
             e.printStackTrace();
@@ -103,7 +102,7 @@ public class SearchUI extends JFrame {
     }
     
     private void setupCenterPanel() {
-        tableModel = new DefaultTableModel(new String[]{"First Name", "Last Name", "Score"}, 0) {
+        tableModel = new DefaultTableModel(new String[]{"First Name", "Score (FN)", "Last Name", "Score (LN)", "Total Score"}, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
                 return false;
@@ -139,9 +138,13 @@ public class SearchUI extends JFrame {
             tableModel.setRowCount(0);
             for (SimResult res : results) {
                 String[] cand = res.getCandidate();
+                double[] details = res.getScoreDetails();
+                
                 tableModel.addRow(new Object[]{
                     cand.length > 0 ? cand[0] : "",
+                    (details != null && details.length > 0) ? String.format("%.2f%%", details[0] * 100) : "0%",
                     cand.length > 1 ? cand[1] : "",
+                    (details != null && details.length > 1) ? String.format("%.2f%%", details[1] * 100) : "0%",
                     String.format("%.4f", res.getScore())
                 });
             }
@@ -202,8 +205,11 @@ public class SearchUI extends JFrame {
         }
 
         public Criteria getCriteria() {
-            String val = valueField.getText().trim();
-            if (val.isEmpty()) return null;
+        	
+            String val = valueField.getText().trim().toUpperCase();
+            if (val.isEmpty()) {
+				return null;
+			}
 
             Criteria.MatchingType type = (Criteria.MatchingType) typeCombo.getSelectedItem();
             double weight = Double.parseDouble(weightField.getText());

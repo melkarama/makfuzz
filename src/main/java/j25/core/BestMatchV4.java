@@ -1,42 +1,31 @@
 package j25.core;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import org.apache.commons.io.FileUtils;
-import org.apache.commons.lang3.StringUtils;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.github.vickumar1981.stringdistance.util.StringDistance;
+import net.ricecode.similarity.JaroWinklerStrategy;
+import net.ricecode.similarity.SimilarityStrategy;
 
 public class BestMatchV4 {
 
 	static final String SEP = "[,;]";
+	private static final SimilarityStrategy STRATEGY = new JaroWinklerStrategy();
 
-	public static void main(String[] args) throws IOException {
-
-		List<String> firstNames = FileUtils.readLines(new File("./names.csv"), StandardCharsets.UTF_8);
-
-		List<String[]> db = firstNames.stream().map(s -> s.toUpperCase().split(SEP)).toList();
-
-		List<Criteria> criterias = new ArrayList<>();
-//		criterias.add(Criteria.similarity("abdelah", 2, 0.8));
-//		criterias.add(Criteria.regex(".+h.*m.*d", 5));
-		criterias.add(Criteria.similarity("ahmed", 1, 0.5d));
-//		criterias.add(Criteria.similarity("said", 0, 10));
-
-		List<SimResult> bfn = bestMatch(db, criterias, 0.0, 100);
-		ObjectMapper mapper = new ObjectMapper();
-		mapper.enable(com.fasterxml.jackson.databind.SerializationFeature.INDENT_OUTPUT);
-		System.out.println(mapper.writeValueAsString(bfn));
-	}
+//	public static void main(String[] args) throws IOException {
+//
+//		List<String> firstNames = FileUtils.readLines(new File("./names.csv"), StandardCharsets.UTF_8);
+//
+//		List<String[]> db = firstNames.stream().map(s -> s.toUpperCase().split(SEP)).toList();
+//
+//		List<Criteria> criterias = new ArrayList<>();
+//		criterias.add(Criteria.similarity("ahmed", 1, 0.5d));
+//
+//		List<SimResult> bfn = bestMatch(db, criterias, 0.0, 100);
+//		ObjectMapper mapper = new ObjectMapper();
+//		mapper.enable(com.fasterxml.jackson.databind.SerializationFeature.INDENT_OUTPUT);
+//		System.out.println(mapper.writeValueAsString(bfn));
+//	}
 	
 	public static List<SimResult> bestMatch(Collection<String[]> candidates, List<Criteria> criterias, double threshold,
 			int topN) {
@@ -97,7 +86,12 @@ public class BestMatchV4 {
 							}
 						} else {
 							// SIMILARITY
-							simScore = (cellValue == null) ? 0.0 : StringDistance.jaro(cellValue, cI.value);
+							if (cellValue == null) {
+								simScore = 0.0;
+							} else {
+								// RiceCode String Similarity Strategy
+								simScore = STRATEGY.score(cellValue, cI.value);
+							}
 							
 							if (simScore < cI.minScoreIfSimilarity) {
 								return null;

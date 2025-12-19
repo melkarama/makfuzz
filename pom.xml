@@ -28,9 +28,9 @@
 		</dependency>
 
 		<dependency>
-			<groupId>org.apache.commons</groupId>
-			<artifactId>commons-text</artifactId>
-			<version>1.14.0</version>
+			<groupId>net.ricecode</groupId>
+			<artifactId>string-similarity</artifactId>
+			<version>1.0.0</version>
 		</dependency>
 
 		<dependency>
@@ -45,11 +45,6 @@
 			<version>2.21.0</version>
 		</dependency>
 
-		<dependency>
-			<groupId>com.github.vickumar1981</groupId>
-			<artifactId>stringdistance_2.13</artifactId>
-			<version>1.2.7</version>
-		</dependency>
 
 
 		<dependency>
