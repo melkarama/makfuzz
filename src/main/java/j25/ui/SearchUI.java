@@ -3,6 +3,7 @@ package j25.ui;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
+import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.io.File;
@@ -12,6 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import javax.swing.BorderFactory;
+import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JFrame;
@@ -37,17 +39,13 @@ public class SearchUI extends JFrame {
     private DefaultTableModel tableModel;
     
     // UI Components
-    private JTextField valueField;
-    private JComboBox<String> columnCombo;
-    private JComboBox<Criteria.MatchingType> typeCombo;
-    private JTextField weightField;
-    private JTextField minScoreField;
-    private JLabel minScoreLabel;
+    private CriteriaLine fnLine;
+    private CriteriaLine lnLine;
     private JLabel statusLabel;
     
     public SearchUI() {
         setTitle("Fuzzy Search Tester (BestMatchV4)");
-        setSize(1300, 600);
+        setSize(1300, 700);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setLayout(new BorderLayout());
         
@@ -71,7 +69,7 @@ public class SearchUI extends JFrame {
             database = lines.stream()
                 .skip(1)
                 .filter(l -> !l.trim().isEmpty())
-                .map(line -> line.split("[,;]")) // Keep original case for display, but logic uses toUpperCase
+                .map(line -> line.split("[,;]"))
                 .toList();
         } catch (IOException e) {
             e.printStackTrace();
@@ -80,57 +78,28 @@ public class SearchUI extends JFrame {
     }
     
     private void setupTopPanel() {
-        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 10));
-        panel.setBorder(BorderFactory.createTitledBorder("Search Criteria"));
-        
-        columnCombo = new JComboBox<>(new String[]{"First Name (Col 0)", "Last Name (Col 1)"});
-        valueField = new JTextField(24);
-        valueField.setText("ahmed");
-        
-        typeCombo = new JComboBox<>(Criteria.MatchingType.values());
-        typeCombo.setSelectedItem(Criteria.MatchingType.SIMILARITY);
-        weightField = new JTextField("1.0", 3);
-        
-        minScoreLabel = new JLabel("Min Sim Score:");
-        minScoreField = new JTextField("0.5", 3);
-        
+        JPanel mainPanel = new JPanel();
+        mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
+        mainPanel.setBorder(BorderFactory.createTitledBorder("Search Criteria"));
+
+        fnLine = new CriteriaLine("First Name:", "ahmed");
+        lnLine = new CriteriaLine("Last Name:", "");
+
+        mainPanel.add(fnLine);
+        mainPanel.add(lnLine);
+
         JButton executeBtn = new JButton("Run Search");
         executeBtn.setBackground(new Color(70, 130, 180));
         executeBtn.setForeground(Color.WHITE);
         executeBtn.setFocusPainted(false);
-        
-        panel.add(new JLabel("Column:"));
-        panel.add(columnCombo);
-        panel.add(new JLabel("Value:"));
-        panel.add(valueField);
-        panel.add(new JLabel("Type:"));
-        panel.add(typeCombo);
-        panel.add(new JLabel("Weight:"));
-        panel.add(weightField);
-        panel.add(minScoreLabel);
-        panel.add(minScoreField);
-        panel.add(executeBtn);
-        
-        typeCombo.addActionListener(e -> updateVisibility());
+        executeBtn.setFont(new Font("SansSerif", Font.BOLD, 14));
         executeBtn.addActionListener(e -> performSearch());
-        
-        updateVisibility();
-        add(panel, BorderLayout.NORTH);
-    }
-    
-    private void updateVisibility() {
-        boolean isSimilarity = typeCombo.getSelectedItem() == Criteria.MatchingType.SIMILARITY;
-        minScoreLabel.setVisible(isSimilarity);
-        minScoreField.setVisible(isSimilarity);
-        panelRevalidate();
-    }
-    
-    private void panelRevalidate() {
-        Component parent = minScoreLabel.getParent();
-        if (parent != null) {
-            parent.revalidate();
-            parent.repaint();
-        }
+
+        JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        btnPanel.add(executeBtn);
+        mainPanel.add(btnPanel);
+
+        add(mainPanel, BorderLayout.NORTH);
     }
     
     private void setupCenterPanel() {
@@ -161,35 +130,9 @@ public class SearchUI extends JFrame {
     
     private void performSearch() {
         try {
-            int colIdx = columnCombo.getSelectedIndex();
-            String val = valueField.getText();
-            if (val == null || val.trim().isEmpty()) {
-                JOptionPane.showMessageDialog(this, "Please enter a search value.");
-                return;
-            }
-            
-            Criteria.MatchingType type = (Criteria.MatchingType) typeCombo.getSelectedItem();
-            double weight = Double.parseDouble(weightField.getText());
-            double minScore = Double.parseDouble(minScoreField.getText());
-            
             List<Criteria> criteriaList = new ArrayList<>();
-            
-            Criteria c = null;
-            if (type == Criteria.MatchingType.SIMILARITY) {
-				c = Criteria.similarity(val, weight, minScore);
-			} else if (type == Criteria.MatchingType.EXACT) {
-				c = Criteria.exact(val, weight);
-			} else {
-				c = Criteria.regex(val, weight);
-			}
-                
-            if (colIdx == 0) {
-                criteriaList.add(c);
-                criteriaList.add(null);
-            } else {
-                criteriaList.add(null);
-                criteriaList.add(c);
-            }
+            criteriaList.add(fnLine.getCriteria());
+            criteriaList.add(lnLine.getCriteria());
             
             List<SimResult> results = BestMatchV4.bestMatch(database, criteriaList, 0.0, 500);
             
@@ -205,10 +148,74 @@ public class SearchUI extends JFrame {
             statusLabel.setText("Total found: " + results.size());
             
         } catch (NumberFormatException e) {
-            JOptionPane.showMessageDialog(this, "Weight and Min Score must be numbers.");
+            JOptionPane.showMessageDialog(this, "Weights and Min Scores must be valid numbers.");
         } catch (Exception e) {
             e.printStackTrace(); 
             JOptionPane.showMessageDialog(this, "Search error: " + e.getMessage());
+        }
+    }
+
+    private static class CriteriaLine extends JPanel {
+        private JTextField valueField;
+        private JComboBox<Criteria.MatchingType> typeCombo;
+        private JTextField weightField;
+        private JTextField minScoreField;
+        private JLabel minScoreLabel;
+
+        public CriteriaLine(String label, String defaultValue) {
+            setLayout(new FlowLayout(FlowLayout.LEFT, 10, 5));
+            
+            JLabel lbl = new JLabel(label);
+            lbl.setPreferredSize(new Dimension(100, 25));
+            add(lbl);
+
+            valueField = new JTextField(defaultValue, 20);
+            add(new JLabel("Value:"));
+            add(valueField);
+
+            typeCombo = new JComboBox<>(Criteria.MatchingType.values());
+            typeCombo.setSelectedItem(Criteria.MatchingType.SIMILARITY);
+            add(new JLabel("Type:"));
+            add(typeCombo);
+
+            weightField = new JTextField("1.0", 3);
+            add(new JLabel("Weight:"));
+            add(weightField);
+
+            minScoreLabel = new JLabel("Min Sim Score:");
+            minScoreField = new JTextField("0.5", 3);
+            add(minScoreLabel);
+            add(minScoreField);
+
+            typeCombo.addActionListener(e -> {
+                boolean isSimilarity = typeCombo.getSelectedItem() == Criteria.MatchingType.SIMILARITY;
+                minScoreLabel.setVisible(isSimilarity);
+                minScoreField.setVisible(isSimilarity);
+                revalidate();
+                repaint();
+            });
+
+            // Trigger initial visibility
+            boolean isSimilarity = typeCombo.getSelectedItem() == Criteria.MatchingType.SIMILARITY;
+            minScoreLabel.setVisible(isSimilarity);
+            minScoreField.setVisible(isSimilarity);
+        }
+
+        public Criteria getCriteria() {
+            String val = valueField.getText().trim();
+            if (val.isEmpty()) return null;
+
+            Criteria.MatchingType type = (Criteria.MatchingType) typeCombo.getSelectedItem();
+            double weight = Double.parseDouble(weightField.getText());
+            double minScore = Double.parseDouble(minScoreField.getText());
+
+            if (type == Criteria.MatchingType.SIMILARITY) {
+                return Criteria.similarity(val, weight, minScore);
+            } else if (type == Criteria.MatchingType.EXACT) {
+                return Criteria.exact(val, weight);
+            } else {
+                return Criteria.regex(val, weight);
+            }
         }
     }
     

@@ -57,14 +57,21 @@ public class BestMatchV4 {
 			}
 		}
 
-		if (activeIndexes.isEmpty() || totalWeight <= 0) {
+		if (activeIndexes.isEmpty()) {
+			// If no criteria are active, return the top candidates with a perfect score
+			return candidates.stream()
+					.limit(topN)
+					.map(t -> new SimResult(t, 1.0, new double[count]))
+					.collect(Collectors.toList());
+		}
+
+		if (totalWeight <= 0) {
 			return java.util.Collections.emptyList();
 		}
 
 		final double finalTotalWeight = totalWeight;
 
 		return candidates.stream()
-				.filter(t -> t.length > activeIndexes.get(activeIndexes.size() - 1))
 				.map(t -> {
 					double[] scoreDetails = new double[count];
 					double weightedScoreSum = 0d;
@@ -72,27 +79,27 @@ public class BestMatchV4 {
 					for (int i : activeIndexes) {
 						Criteria cI = criterias.get(i);
 						double simScore = 0.0;
+						
+						// Safety check for row length
+						String cellValue = (t != null && i < t.length) ? t[i] : null;
 
 						if (cI.matchingType == Criteria.MatchingType.EXACT) {
-							if (t[i] != null && t[i].equalsIgnoreCase(cI.value)) {
+							if (cellValue != null && cellValue.equalsIgnoreCase(cI.value)) {
 								simScore = 1.0;
 							} else {
-								// For EXACT, if it doesn't match, we can disqualify early
 								return null;
 							}
 						} else if (cI.matchingType == Criteria.MatchingType.REGEX) {
-							if (cI.pattern != null && t[i] != null && cI.pattern.matcher(t[i]).matches()) {
+							if (cI.pattern != null && cellValue != null && cI.pattern.matcher(cellValue).matches()) {
 								simScore = 1.0;
 							} else {
-								// Similarly for REGEX, if we specify a regex, we typically want it to match
 								return null;
 							}
 						} else {
 							// SIMILARITY
-							simScore = (t[i] == null) ? 0.0 : StringDistance.jaro(t[i], cI.value);
+							simScore = (cellValue == null) ? 0.0 : StringDistance.jaro(cellValue, cI.value);
 							
 							if (simScore < cI.minScoreIfSimilarity) {
-								// If it fails to meet the minimum similarity for this field, disqualify
 								return null;
 							}
 						}
@@ -102,14 +109,12 @@ public class BestMatchV4 {
 						weightedScoreSum += weightedPart;
 					}
 
-					// Normalize by total weight to get a score between 0 and 1
 					double finalScore = weightedScoreSum / finalTotalWeight;
-
 					return new SimResult(t, finalScore, scoreDetails);
 				})
 				.filter(p -> p != null && p.getScore() >= threshold)
 				.distinct()
-				.sorted() // Uses the corrected Comparable implementation
+				.sorted()
 				.limit(topN)
 				.collect(Collectors.toList());
 	}
