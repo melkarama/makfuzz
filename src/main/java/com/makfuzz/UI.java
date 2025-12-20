@@ -108,7 +108,7 @@ public class UI extends JFrame {
 
         // 1. Data Source Card
         JPanel sourcePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 15, 15));
-        sourcePanel.putClientProperty(FlatClientProperties.STYLE, "arc: 15; background: #ffffff; outlineWidth: 1; outlineColor: #e0e0e0");
+        sourcePanel.putClientProperty(FlatClientProperties.STYLE, "arc: 15; background: #ffffff; ");
         
         JLabel srcLabel = new JLabel("Data Source:");
         srcLabel.setFont(new Font("SansSerif", Font.BOLD, 13));
@@ -188,7 +188,7 @@ public class UI extends JFrame {
     private void setupTopPanel(JPanel parent) {
         JPanel mainPanel = new JPanel();
         mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
-        mainPanel.putClientProperty(FlatClientProperties.STYLE, "arc: 15; background: #ffffff; outlineWidth: 1; outlineColor: #e0e0e0");
+        mainPanel.putClientProperty(FlatClientProperties.STYLE, "arc: 15; background: #ffffff; ");
         mainPanel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
 
         JLabel criteriaLabel = new JLabel("Search Configuration:");
@@ -206,14 +206,14 @@ public class UI extends JFrame {
         
         bottomBar.add(new JLabel("Global Threshold:"));
         globalThresholdField = new JTextField("0.3", 4);
-        globalThresholdField.putClientProperty(FlatClientProperties.STYLE, "arc: 8; horizontalAlignment: center");
+        globalThresholdField.putClientProperty(FlatClientProperties.STYLE, "arc: 8; ");
         globalThresholdField.addActionListener(e -> { globalThresholdField.selectAll(); performSearch(); });
         bottomBar.add(globalThresholdField);
 
         bottomBar.add(Box.createHorizontalStrut(15));
         bottomBar.add(new JLabel("Top N Limit:"));
         topNField = new JTextField("1000", 5);
-        topNField.putClientProperty(FlatClientProperties.STYLE, "arc: 8; horizontalAlignment: center");
+        topNField.putClientProperty(FlatClientProperties.STYLE, "arc: 8; ");
         topNField.addActionListener(e -> { topNField.selectAll(); performSearch(); });
         bottomBar.add(topNField);
         bottomBar.add(Box.createHorizontalStrut(15));
@@ -262,7 +262,7 @@ public class UI extends JFrame {
         resultTable.setSelectionForeground(Color.BLACK);
         
         // Modern alternating colors
-        resultTable.putClientProperty(FlatClientProperties.STYLE, "showHorizontalLines: true; showVerticalLines: true; rowHeight: 28; alternatingRowColor: #f9f9f9");
+        resultTable.putClientProperty(FlatClientProperties.STYLE, "showHorizontalLines: true; showVerticalLines: true; rowHeight: 28;");
         
         // Adjust column widths roughly
         resultTable.getColumnModel().getColumn(0).setPreferredWidth(40); // Index column
@@ -568,20 +568,20 @@ public class UI extends JFrame {
 
             add(new JLabel("Weight:"));
             weightField = new JTextField("1.0", 3);
-            weightField.putClientProperty(FlatClientProperties.STYLE, "arc: 8; horizontalAlignment: center");
+            weightField.putClientProperty(FlatClientProperties.STYLE, "arc: 8; ");
             weightField.addActionListener(e -> { weightField.selectAll(); onEnter.run(); });
             add(weightField);
 
             minSpellingLabel = new JLabel("Min Spell:");
             minSpellingField = new JTextField("0.8", 4);
-            minSpellingField.putClientProperty(FlatClientProperties.STYLE, "arc: 8; horizontalAlignment: center");
+            minSpellingField.putClientProperty(FlatClientProperties.STYLE, "arc: 8; ");
             minSpellingField.addActionListener(e -> { minSpellingField.selectAll(); onEnter.run(); });
             add(minSpellingLabel);
             add(minSpellingField);
 
             minPhoneticLabel = new JLabel("Min Phon:");
             minPhoneticField = new JTextField("0.8", 4);
-            minPhoneticField.putClientProperty(FlatClientProperties.STYLE, "arc: 8; horizontalAlignment: center");
+            minPhoneticField.putClientProperty(FlatClientProperties.STYLE, "arc: 8; ");
             minPhoneticField.addActionListener(e -> { minPhoneticField.selectAll(); onEnter.run(); });
             add(minPhoneticLabel);
             add(minPhoneticField);
