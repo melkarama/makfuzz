@@ -7,6 +7,8 @@ import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -16,6 +18,7 @@ import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
+import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
@@ -25,16 +28,20 @@ import javax.swing.JTable;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
+import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.table.DefaultTableModel;
 
 import org.apache.commons.io.FileUtils;
-import javax.swing.JFileChooser;
-import javax.swing.filechooser.FileNameExtensionFilter;
-import java.io.FileOutputStream;
-import java.io.FileWriter;
-import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.ss.usermodel.BorderStyle;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.FillPatternType;
+import org.apache.poi.ss.usermodel.HorizontalAlignment;
+import org.apache.poi.ss.usermodel.IndexedColors;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import org.apache.poi.ss.util.CellRangeAddress;
 
 import j25.core.BestMatchV4;
 import j25.core.Criteria;
@@ -48,6 +55,7 @@ public class SearchUI extends JFrame {
     // UI Components
     private CriteriaLine fnLine;
     private CriteriaLine lnLine;
+    private JTextField sourcePathField;
     private JTextField globalThresholdField;
     private JTextField topNField;
     private JLabel statusLabel;
@@ -58,18 +66,48 @@ public class SearchUI extends JFrame {
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setLayout(new BorderLayout());
         
-        loadData();
-        setupTopPanel();
-        setupCenterPanel();
+        setupUI();
         
         setLocationRelativeTo(null);
     }
+
+    private void setupUI() {
+        JPanel headerPanel = new JPanel();
+        headerPanel.setLayout(new BoxLayout(headerPanel, BoxLayout.Y_AXIS));
+
+        // 1. Data Source Panel
+        JPanel sourcePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        sourcePanel.setBorder(BorderFactory.createTitledBorder("Data Source"));
+        sourcePathField = new JTextField("./names.csv", 60);
+        JButton browseBtn = new JButton("Browse...");
+        browseBtn.addActionListener(e -> {
+            JFileChooser chooser = new JFileChooser(new File("."));
+            chooser.setFileFilter(new FileNameExtensionFilter("CSV Files", "csv"));
+            if (chooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
+                sourcePathField.setText(chooser.getSelectedFile().getAbsolutePath());
+            }
+        });
+
+        sourcePanel.add(new JLabel("CSV File:"));
+        sourcePanel.add(sourcePathField);
+        sourcePanel.add(browseBtn);
+
+        // 2. Search Panel
+        setupTopPanel(headerPanel);
+
+        headerPanel.add(sourcePanel, 0); // Add at the top
+
+        add(headerPanel, BorderLayout.NORTH);
+
+        // 3. Table Panel
+        setupCenterPanel();
+    }
     
-    private void loadData() {
+    private void loadData(String path) {
         try {
-            File f = new File("./names.csv");
+            File f = new File(path);
             if (!f.exists()) {
-                System.out.println("names.csv not found in " + f.getAbsolutePath());
+                JOptionPane.showMessageDialog(this, "File not found: " + f.getAbsolutePath());
                 database = new ArrayList<>();
                 return;
             }
@@ -80,18 +118,22 @@ public class SearchUI extends JFrame {
                 .filter(l -> !l.trim().isEmpty())
                 .map(line -> line.toUpperCase().split("[,;]"))
                 .toList();
+            
+            if (statusLabel != null) {
+                statusLabel.setText("Database loaded: " + database.size() + " records.");
+            }
         } catch (IOException e) {
             e.printStackTrace();
-            JOptionPane.showMessageDialog(this, "Error loading names.csv: " + e.getMessage());
+            JOptionPane.showMessageDialog(this, "Error loading file: " + e.getMessage());
         }
     }
     
-    private void setupTopPanel() {
+    private void setupTopPanel(JPanel parent) {
         JPanel mainPanel = new JPanel();
         mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
         mainPanel.setBorder(BorderFactory.createTitledBorder("Search Criteria"));
 
-        fnLine = new CriteriaLine("First Name:", "ahmed", this::performSearch);
+        fnLine = new CriteriaLine("First Name:", "", this::performSearch);
         lnLine = new CriteriaLine("Last Name:", "", this::performSearch);
 
         mainPanel.add(fnLine);
@@ -127,7 +169,7 @@ public class SearchUI extends JFrame {
 
         mainPanel.add(bottomBar);
 
-        add(mainPanel, BorderLayout.NORTH);
+        parent.add(mainPanel);
     }
     
     private void setupCenterPanel() {
@@ -167,6 +209,12 @@ public class SearchUI extends JFrame {
     
     private void performSearch() {
         try {
+            // Load data only when search is clicked
+            loadData(sourcePathField.getText());
+            if (database == null || database.isEmpty()) {
+                return;
+            }
+
             List<Criteria> criteriaList = new ArrayList<>();
             criteriaList.add(fnLine.getCriteria());
             criteriaList.add(lnLine.getCriteria());
