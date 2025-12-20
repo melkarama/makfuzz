@@ -15,15 +15,17 @@ public class Criteria {
 
     public String value;
     public double weight;
-    public double minScoreIfSimilarity;
+    public double minSpellingScore;
+    public double minPhoneticScore;
     public MatchingType matchingType;
     public Pattern pattern;
 
-    public Criteria(String value, double weight, double minScoreIfSimilarity, MatchingType matchingType) {
+    public Criteria(String value, double weight, double minSpellingScore, double minPhoneticScore, MatchingType matchingType) {
         super();
         this.value = StringUtils.isBlank(value) ? null : value.trim().toUpperCase();
         this.weight = weight;
-        this.minScoreIfSimilarity = minScoreIfSimilarity;
+        this.minSpellingScore = minSpellingScore;
+        this.minPhoneticScore = minPhoneticScore;
         this.matchingType = matchingType;
         
         // Compile regex pattern if matchingType is REGEX
@@ -37,16 +39,16 @@ public class Criteria {
         }
     }
 
-    public static Criteria similarity(String value, double weight, double minScore) {
-        return new Criteria(value, weight, minScore, MatchingType.SIMILARITY);
+    public static Criteria similarity(String value, double weight, double minSpelling, double minPhonetic) {
+        return new Criteria(value, weight, minSpelling, minPhonetic, MatchingType.SIMILARITY);
     }
 
     public static Criteria exact(String value, double weight) {
-        return new Criteria(value, weight, -1, MatchingType.EXACT);
+        return new Criteria(value, weight, -1, -1, MatchingType.EXACT);
     }
     
     public static Criteria regex(String value, double weight) {
-        return new Criteria(value, weight, -1, MatchingType.REGEX);
+        return new Criteria(value, weight, -1, -1, MatchingType.REGEX);
     }
     
     public boolean isBlank() {

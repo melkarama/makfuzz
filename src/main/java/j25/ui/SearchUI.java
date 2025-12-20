@@ -103,7 +103,7 @@ public class SearchUI extends JFrame {
     
     private void setupCenterPanel() {
         tableModel = new DefaultTableModel(new String[]{
-            "First Name", "Spell (FN)", "Phon (FN)", 
+            "#", "First Name", "Spell (FN)", "Phon (FN)", 
             "Last Name", "Spell (LN)", "Phon (LN)", 
             "Total Score"
         }, 0) {
@@ -118,8 +118,9 @@ public class SearchUI extends JFrame {
         resultTable.setRowHeight(25);
         
         // Adjust column widths roughly
-        resultTable.getColumnModel().getColumn(0).setPreferredWidth(150);
-        resultTable.getColumnModel().getColumn(3).setPreferredWidth(150);
+        resultTable.getColumnModel().getColumn(0).setPreferredWidth(40); // Index column
+        resultTable.getColumnModel().getColumn(1).setPreferredWidth(150); // FN column
+        resultTable.getColumnModel().getColumn(4).setPreferredWidth(150); // LN column
 
         JScrollPane scrollPane = new JScrollPane(resultTable);
         scrollPane.setBorder(BorderFactory.createEmptyBorder(0, 10, 10, 10));
@@ -144,19 +145,26 @@ public class SearchUI extends JFrame {
             List<SimResult> results = BestMatchV4.bestMatch(database, criteriaList, 0.0, 500);
             
             tableModel.setRowCount(0);
+            int rowIndex = 1;
             for (SimResult res : results) {
                 String[] cand = res.getCandidate();
                 double[] sDetails = res.getSpellingScoreDetails();
                 double[] pDetails = res.getPhoneticScoreDetails();
                 
+                // Helper to determine if we should show a score for an index
+                // We show it only if the user actually input something for that line
+                boolean hasFN = criteriaList.get(0) != null;
+                boolean hasLN = criteriaList.get(1) != null;
+
                 tableModel.addRow(new Object[]{
+                    rowIndex++,
                     cand.length > 0 ? cand[0] : "",
-                    (sDetails != null && sDetails.length > 0) ? String.format("%.0f%%", sDetails[0] * 100) : "0%",
-                    (pDetails != null && pDetails.length > 0) ? String.format("%.0f%%", pDetails[0] * 100) : "0%",
+                    hasFN ? String.format("%.0f%%", (sDetails != null && sDetails.length > 0) ? sDetails[0] * 100 : 0) : "",
+                    hasFN ? String.format("%.0f%%", (pDetails != null && pDetails.length > 0) ? pDetails[0] * 100 : 0) : "",
                     cand.length > 1 ? cand[1] : "",
-                    (sDetails != null && sDetails.length > 1) ? String.format("%.0f%%", sDetails[1] * 100) : "0%",
-                    (pDetails != null && pDetails.length > 1) ? String.format("%.0f%%", pDetails[1] * 100) : "0%",
-                    String.format("%.4f", res.getScore())
+                    hasLN ? String.format("%.0f%%", (sDetails != null && sDetails.length > 1) ? sDetails[1] * 100 : 0) : "",
+                    hasLN ? String.format("%.0f%%", (pDetails != null && pDetails.length > 1) ? pDetails[1] * 100 : 0) : "",
+                    String.format("%.2f%%", res.getScore() * 100)
                 });
             }
             statusLabel.setText("Total found: " + results.size());
@@ -173,9 +181,10 @@ public class SearchUI extends JFrame {
         private JTextField valueField;
         private JComboBox<Criteria.MatchingType> typeCombo;
         private JTextField weightField;
-        private JTextField minScoreField;
-        private JLabel minScoreLabel;
-
+        private JTextField minSpellingField;
+        private JTextField minPhoneticField;
+        private JLabel minSpellingLabel;
+        private JLabel minPhoneticLabel;
         private final Runnable onEnter;
 
         public CriteriaLine(String label, String defaultValue, Runnable onEnter) {
@@ -186,9 +195,9 @@ public class SearchUI extends JFrame {
             lbl.setPreferredSize(new Dimension(100, 25));
             add(lbl);
 
-            valueField = new JTextField(defaultValue, 20);
-            valueField.addActionListener(e -> onEnter.run());
-            add(new JLabel("Value:"));
+            valueField = new JTextField(defaultValue, 15);
+            valueField.addActionListener(e -> { valueField.selectAll(); onEnter.run(); });
+            add(new JLabel("Val:"));
             add(valueField);
 
             typeCombo = new JComboBox<>(Criteria.MatchingType.values());
@@ -196,29 +205,39 @@ public class SearchUI extends JFrame {
             add(new JLabel("Type:"));
             add(typeCombo);
 
-            weightField = new JTextField("1.0", 5);
-            weightField.addActionListener(e -> onEnter.run());
-            add(new JLabel("Weight:"));
+            weightField = new JTextField("1.0", 4);
+            weightField.addActionListener(e -> { weightField.selectAll(); onEnter.run(); });
+            add(new JLabel("W:"));
             add(weightField);
 
-            minScoreLabel = new JLabel("Min Sim Score:");
-            minScoreField = new JTextField("0.8", 5);
-            minScoreField.addActionListener(e -> onEnter.run());
-            add(minScoreLabel);
-            add(minScoreField);
+            minSpellingLabel = new JLabel("Min Spell:");
+            minSpellingField = new JTextField("0.8", 4);
+            minSpellingField.addActionListener(e -> { minSpellingField.selectAll(); onEnter.run(); });
+            add(minSpellingLabel);
+            add(minSpellingField);
+
+            minPhoneticLabel = new JLabel("Min Phon:");
+            minPhoneticField = new JTextField("0.8", 4);
+            minPhoneticField.addActionListener(e -> { minPhoneticField.selectAll(); onEnter.run(); });
+            add(minPhoneticLabel);
+            add(minPhoneticField);
 
             typeCombo.addActionListener(e -> {
                 boolean isSimilarity = typeCombo.getSelectedItem() == Criteria.MatchingType.SIMILARITY;
-                minScoreLabel.setVisible(isSimilarity);
-                minScoreField.setVisible(isSimilarity);
+                minSpellingLabel.setVisible(isSimilarity);
+                minSpellingField.setVisible(isSimilarity);
+                minPhoneticLabel.setVisible(isSimilarity);
+                minPhoneticField.setVisible(isSimilarity);
                 revalidate();
                 repaint();
             });
 
             // Trigger initial visibility
             boolean isSimilarity = typeCombo.getSelectedItem() == Criteria.MatchingType.SIMILARITY;
-            minScoreLabel.setVisible(isSimilarity);
-            minScoreField.setVisible(isSimilarity);
+            minSpellingLabel.setVisible(isSimilarity);
+            minSpellingField.setVisible(isSimilarity);
+            minPhoneticLabel.setVisible(isSimilarity);
+            minPhoneticField.setVisible(isSimilarity);
         }
 
         public Criteria getCriteria() {
@@ -230,10 +249,11 @@ public class SearchUI extends JFrame {
 
             Criteria.MatchingType type = (Criteria.MatchingType) typeCombo.getSelectedItem();
             double weight = Double.parseDouble(weightField.getText());
-            double minScore = Double.parseDouble(minScoreField.getText());
+            double minSpell = Double.parseDouble(minSpellingField.getText());
+            double minPhon = Double.parseDouble(minPhoneticField.getText());
 
             if (type == Criteria.MatchingType.SIMILARITY) {
-                return Criteria.similarity(val, weight, minScore);
+                return Criteria.similarity(val, weight, minSpell, minPhon);
             } else if (type == Criteria.MatchingType.EXACT) {
                 return Criteria.exact(val, weight);
             } else {

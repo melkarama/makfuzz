@@ -105,11 +105,15 @@ public class BestMatchV4 {
 							} else {
 								phoneticScore = SPELLING_STRATEGY.apply(code1, code2);
 							}
+
+							// Calculation based on user formula: average of spelling and phonetic
+							choiceScore = (spellingScore + phoneticScore) / 2.0;
 							
-							// Either a visual match or a sound match can pass
-							choiceScore = Math.max(spellingScore, phoneticScore);
+							// Check if the result meets either threshold to be considered a "match" at all
+							boolean spellingPasses = spellingScore >= cI.minSpellingScore;
+							boolean phoneticPasses = phoneticScore >= cI.minPhoneticScore;
 							
-							if (choiceScore < cI.minScoreIfSimilarity) {
+							if (!spellingPasses && !phoneticPasses) {
 								return null;
 							}
 						}
