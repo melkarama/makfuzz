@@ -196,8 +196,47 @@ public class UI extends JFrame {
         statusBar.add(versionLabel, BorderLayout.EAST);
         
         add(statusBar, BorderLayout.SOUTH);
+        
+        // Restore settings
+        loadSettings();
+        
+        // Save on exit
+        addWindowListener(new java.awt.event.WindowAdapter() {
+            @Override
+            public void windowClosing(java.awt.event.WindowEvent e) {
+                saveSettings();
+            }
+        });
     }
     
+    private void saveSettings() {
+        ConfigManager.AppConfig config = new ConfigManager.AppConfig();
+        config.sourcePath = sourcePathField.getText();
+        config.globalThreshold = (Double) globalThresholdField.getValue();
+        try { config.topN = Integer.parseInt(topNField.getText()); } catch(Exception e) { config.topN = 1000; }
+        
+        config.fnCriteria = fnLine.getConfig();
+        config.lnCriteria = lnLine.getConfig();
+        
+        File configFile = new File(System.getProperty("user.home"), ".makfuzz_config.xml");
+        ConfigManager.saveConfig(config, configFile);
+    }
+
+    private void loadSettings() {
+        File configFile = new File(System.getProperty("user.home"), ".makfuzz_config.xml");
+        if (!configFile.exists()) return;
+        ConfigManager.AppConfig config = ConfigManager.loadConfig(configFile);
+        
+        if (config != null) {
+            sourcePathField.setText(config.sourcePath);
+            try { globalThresholdField.setValue(config.globalThreshold); } catch (Exception e) {}
+            topNField.setText(String.valueOf(config.topN));
+            
+            if (config.fnCriteria != null) fnLine.setConfig(config.fnCriteria);
+            if (config.lnCriteria != null) lnLine.setConfig(config.lnCriteria);
+        }
+    }
+
     private void loadData(String path) {
         try {
             File f = new File(path);
@@ -962,6 +1001,29 @@ public class UI extends JFrame {
             } else {
                 return Criteria.regex(val, weight);
             }
+        }
+        
+        public ConfigManager.CriteriaConfig getConfig() {
+            ConfigManager.CriteriaConfig cc = new ConfigManager.CriteriaConfig();
+            cc.value = valueField.getText();
+            cc.type = ((Criteria.MatchingType) typeCombo.getSelectedItem()).name();
+            cc.weight = (Integer) weightSpinner.getValue();
+            cc.minSpelling = (Double) minSpellingField.getValue();
+            cc.minPhonetic = (Double) minPhoneticField.getValue();
+            return cc;
+        }
+
+        public void setConfig(ConfigManager.CriteriaConfig cc) {
+            if (cc == null) return;
+            valueField.setText(cc.value);
+            try {
+                typeCombo.setSelectedItem(Criteria.MatchingType.valueOf(cc.type));
+            } catch (Exception e) {
+                typeCombo.setSelectedItem(Criteria.MatchingType.SIMILARITY);
+            }
+            weightSpinner.setValue(cc.weight);
+            minSpellingField.setValue(cc.minSpelling);
+            minPhoneticField.setValue(cc.minPhonetic);
         }
     }
     
