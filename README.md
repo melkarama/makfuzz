@@ -5,6 +5,9 @@
 ![Swing](https://img.shields.io/badge/UI-Swing_FlatLaf-blue?style=for-the-badge)
 ![Status](https://img.shields.io/badge/Status-Production_Ready-green?style=for-the-badge)
 
+![MakFuzz Screenshot](assets/screenshot.png)
+
+
 ---
 
 ## 🚀 What is MakFuzz?
@@ -40,6 +43,8 @@ It goes beyond simple string matching by combining **Spelling Similarity** (how 
 
 ### 📤 Export Power
 - **CSV & Excel**: One-click export of your filtered results to standard formats.
+
+![Excel Export Screenshot](assets/excel_export.png)
 
 ---
 

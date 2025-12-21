@@ -121,7 +121,7 @@ public class UI extends JFrame {
             UIManager.put("ScrollBar.track", new Color(0xf5f5f5));
         } catch (Exception ignored) {}
 
-        setTitle("Fuzzy Search Pro ✨");
+        setTitle("MAKFUZZ - Fuzzy Search Pro ✨");
         setSize(1400, 850);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setLayout(new BorderLayout());
@@ -249,7 +249,7 @@ public class UI extends JFrame {
         });
         
         langCombo = new JComboBox<>(new String[]{"EN", "FR"});
-        langCombo.putClientProperty(FlatClientProperties.STYLE, "arc: 8; background: #3f51b5; foreground: #ffffff; focusWidth: 0; border: none;");
+        langCombo.putClientProperty(FlatClientProperties.STYLE, "arc: 8; background: #3f51b5; foreground: #ffffff; focusWidth: 0;");
         langCombo.setFont(new Font("SansSerif", Font.BOLD, 9));
         langCombo.addActionListener(e -> {
             String selected = (String) langCombo.getSelectedItem();
@@ -302,7 +302,9 @@ public class UI extends JFrame {
 
     private void loadSettings() {
         File configFile = new File(System.getProperty("user.home"), ".makfuzz_config.xml");
-        if (!configFile.exists()) return;
+        if (!configFile.exists()) {
+			return;
+		}
         ConfigManager.AppConfig config = ConfigManager.loadConfig(configFile);
         
         if (config != null) {
@@ -322,8 +324,12 @@ public class UI extends JFrame {
                 updateTexts();
             }
 
-            if (config.fnCriteria != null) fnLine.setConfig(config.fnCriteria);
-            if (config.lnCriteria != null) lnLine.setConfig(config.lnCriteria);
+            if (config.fnCriteria != null) {
+				fnLine.setConfig(config.fnCriteria);
+			}
+            if (config.lnCriteria != null) {
+				lnLine.setConfig(config.lnCriteria);
+			}
         }
     }
 
@@ -531,7 +537,9 @@ public class UI extends JFrame {
     }
 
     private void applyTableColumnStyles() {
-        if (resultTable == null) return;
+        if (resultTable == null) {
+			return;
+		}
         
         // Adjust column widths roughly
         resultTable.getColumnModel().getColumn(0).setPreferredWidth(40); // Index column
@@ -592,8 +600,12 @@ public class UI extends JFrame {
             
             // UI Preparation
             setCursor(java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.WAIT_CURSOR));
-            if (executeBtn != null) executeBtn.setEnabled(false);
-            if (statusLabel != null) statusLabel.setText(bundle.getString("status.loading"));
+            if (executeBtn != null) {
+				executeBtn.setEnabled(false);
+			}
+            if (statusLabel != null) {
+				statusLabel.setText(bundle.getString("status.loading"));
+			}
             
             // Switch to loading view
             centerCardLayout.show(centerPanel, CARD_LOADING);
@@ -625,7 +637,9 @@ public class UI extends JFrame {
                     } finally {
                         // UI Cleanup
                         setCursor(java.awt.Cursor.getDefaultCursor());
-                        if (executeBtn != null) executeBtn.setEnabled(true);
+                        if (executeBtn != null) {
+							executeBtn.setEnabled(true);
+						}
                         // Switch back to table view
                         centerCardLayout.show(centerPanel, CARD_TABLE);
                         
@@ -643,7 +657,9 @@ public class UI extends JFrame {
             JOptionPane.showMessageDialog(this, MessageFormat.format(bundle.getString("dialog.error.setup_error"), e.getMessage()));
             // Ensure UI is reset if synchronous setup fails
             setCursor(java.awt.Cursor.getDefaultCursor());
-            if (executeBtn != null) executeBtn.setEnabled(true);
+            if (executeBtn != null) {
+				executeBtn.setEnabled(true);
+			}
             centerCardLayout.show(centerPanel, CARD_TABLE);
         }
     }
@@ -1157,7 +1173,9 @@ public class UI extends JFrame {
         }
 
         public void setConfig(ConfigManager.CriteriaConfig cc) {
-            if (cc == null) return;
+            if (cc == null) {
+				return;
+			}
             valueField.setText(cc.value);
             try {
                 typeCombo.setSelectedItem(Criteria.MatchingType.valueOf(cc.type));
