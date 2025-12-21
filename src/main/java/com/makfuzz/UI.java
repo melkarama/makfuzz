@@ -77,6 +77,8 @@ public class UI extends JFrame {
     private JLabel statusLabel;
     private JLabel totalLabel;
     
+    private boolean searchPending = false;
+    
     // Card Layout for Center Panel
     private CardLayout centerCardLayout;
     private JPanel centerPanel;
@@ -398,7 +400,13 @@ public class UI extends JFrame {
     
     private void performSearch() {
         // Prevent concurrent searches
-        if (executeBtn != null && !executeBtn.isEnabled()) return;
+        if (executeBtn != null && !executeBtn.isEnabled()) {
+            searchPending = true;
+            return;
+        }
+        
+        // Reset pending flag as we are starting a fresh search
+        searchPending = false;
 
         try {
             // Load data first (fast)
@@ -445,6 +453,11 @@ public class UI extends JFrame {
                         if (executeBtn != null) executeBtn.setEnabled(true);
                         // Switch back to table view
                         centerCardLayout.show(centerPanel, CARD_TABLE);
+                        
+                        // If a search was requested while we were running, execute it now
+                        if (searchPending) {
+                            performSearch();
+                        }
                     }
                 }
             };
