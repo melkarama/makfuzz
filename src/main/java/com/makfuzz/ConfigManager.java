@@ -14,6 +14,7 @@ public class ConfigManager {
         public String sourcePath = "";
         public double globalThreshold = 0.3;
         public int topN = 1000;
+        public String language = "en";
         
         @XmlElement(name = "FirstName")
         public CriteriaConfig fnCriteria;

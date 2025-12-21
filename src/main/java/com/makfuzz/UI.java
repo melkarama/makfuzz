@@ -13,8 +13,11 @@ import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.ResourceBundle;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
@@ -77,6 +80,25 @@ public class UI extends JFrame {
     private JLabel statusLabel;
     private JLabel totalLabel;
     
+    // I18N Fields
+    private ResourceBundle bundle;
+    private Locale currentLocale;
+    private JComboBox<String> langCombo;
+    
+    // UI components that need dynamic text updates
+    private JLabel appTitle;
+    private JLabel appSubtitle;
+    private JLabel srcLabel;
+    private JButton browseBtn;
+    private JLabel criteriaLabel;
+    private JLabel thresholdLabel;
+    private JLabel limitLabel;
+    private JButton csvBtn;
+    private JButton excelBtn;
+    private JLabel versionLabel;
+    private JLabel githubLink;
+    private JLabel loadingIcon;
+    
     private boolean searchPending = false;
     
     // Card Layout for Center Panel
@@ -104,7 +126,15 @@ public class UI extends JFrame {
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setLayout(new BorderLayout());
 
+        // Initialize I18N
+        currentLocale = Locale.getDefault();
+        if (!currentLocale.getLanguage().equals("fr")) {
+            currentLocale = Locale.ENGLISH;
+        }
+        bundle = ResourceBundle.getBundle("messages", currentLocale);
+
         setupUI();
+        updateTexts();
 
         setLocationRelativeTo(null);
     }
@@ -116,12 +146,12 @@ public class UI extends JFrame {
 
         // 0. App Title Section
         JPanel titleBox = new JPanel(new BorderLayout());
-        JLabel appTitle = new JLabel("FUZZY MATCHER");
+        appTitle = new JLabel("FUZZY MATCHER");
         appTitle.setFont(new Font("SansSerif", Font.BOLD, 22));
         appTitle.setForeground(new Color(63, 81, 181));
         titleBox.add(appTitle, BorderLayout.WEST);
         
-        JLabel appSubtitle = new JLabel("Optimized Similarity Engine");
+        appSubtitle = new JLabel("Optimized Similarity Engine");
         appSubtitle.setFont(new Font("SansSerif", Font.PLAIN, 12));
         appSubtitle.setForeground(Color.GRAY);
         titleBox.add(appSubtitle, BorderLayout.SOUTH);
@@ -132,15 +162,14 @@ public class UI extends JFrame {
         JPanel sourcePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 15, 15));
         sourcePanel.putClientProperty(FlatClientProperties.STYLE, "arc: 15; background: #ffffff; ");
         
-        JLabel srcLabel = new JLabel("Data Source:");
+        srcLabel = new JLabel("Data Source:");
         srcLabel.setFont(new Font("SansSerif", Font.BOLD, 13));
         sourcePanel.add(srcLabel);
 
         sourcePathField = new JTextField("./names.csv", 60);
         sourcePathField.putClientProperty(FlatClientProperties.STYLE, "showClearButton: true; arc: 8");
-        sourcePathField.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Select source CSV...");
         
-        JButton browseBtn = new JButton("Browse");
+        browseBtn = new JButton("Browse");
         browseBtn.putClientProperty(FlatClientProperties.STYLE, "buttonType: toolBarButton; focusWidth: 0");
         browseBtn.addActionListener(e -> {
             JFileChooser chooser = new JFileChooser(new File("."));
@@ -193,7 +222,7 @@ public class UI extends JFrame {
         JPanel eastStatusPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 15, 0));
         eastStatusPanel.setOpaque(false);
         
-        JLabel githubLink = new JLabel("<html><u>GitHub</u></html>");
+        githubLink = new JLabel("<html><u>GitHub</u></html>");
         githubLink.setForeground(Color.WHITE);
         githubLink.setFont(new Font("SansSerif", Font.PLAIN, 10));
         githubLink.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
@@ -219,10 +248,25 @@ public class UI extends JFrame {
             }
         });
         
-        JLabel versionLabel = new JLabel("v1.0 2025");
+        langCombo = new JComboBox<>(new String[]{"EN", "FR"});
+        langCombo.putClientProperty(FlatClientProperties.STYLE, "arc: 8; background: #3f51b5; foreground: #ffffff; focusWidth: 0; border: none;");
+        langCombo.setFont(new Font("SansSerif", Font.BOLD, 9));
+        langCombo.addActionListener(e -> {
+            String selected = (String) langCombo.getSelectedItem();
+            if (selected.equals("EN")) {
+                currentLocale = Locale.ENGLISH;
+            } else {
+                currentLocale = Locale.FRENCH;
+            }
+            bundle = ResourceBundle.getBundle("messages", currentLocale);
+            updateTexts();
+        });
+
+        versionLabel = new JLabel("v1.0 2025");
         versionLabel.setForeground(new Color(255, 255, 255, 180));
         versionLabel.setFont(new Font("SansSerif", Font.PLAIN, 9));
         
+        eastStatusPanel.add(langCombo);
         eastStatusPanel.add(githubLink);
         eastStatusPanel.add(versionLabel);
         
@@ -247,6 +291,7 @@ public class UI extends JFrame {
         config.sourcePath = sourcePathField.getText();
         config.globalThreshold = (Double) globalThresholdField.getValue();
         try { config.topN = Integer.parseInt(topNField.getText()); } catch(Exception e) { config.topN = 1000; }
+        config.language = currentLocale.getLanguage();
         
         config.fnCriteria = fnLine.getConfig();
         config.lnCriteria = lnLine.getConfig();
@@ -265,8 +310,58 @@ public class UI extends JFrame {
             try { globalThresholdField.setValue(config.globalThreshold); } catch (Exception e) {}
             topNField.setText(String.valueOf(config.topN));
             
+            if (config.language != null) {
+                if (config.language.equals("fr")) {
+                    currentLocale = Locale.FRENCH;
+                    langCombo.setSelectedItem("FR");
+                } else {
+                    currentLocale = Locale.ENGLISH;
+                    langCombo.setSelectedItem("EN");
+                }
+                bundle = ResourceBundle.getBundle("messages", currentLocale);
+                updateTexts();
+            }
+
             if (config.fnCriteria != null) fnLine.setConfig(config.fnCriteria);
             if (config.lnCriteria != null) lnLine.setConfig(config.lnCriteria);
+        }
+    }
+
+    private void updateTexts() {
+        setTitle(bundle.getString("app.title"));
+        appTitle.setText(bundle.getString("app.header.title"));
+        appSubtitle.setText(bundle.getString("app.header.subtitle"));
+        srcLabel.setText(bundle.getString("source.label"));
+        browseBtn.setText(bundle.getString("source.button.browse"));
+        sourcePathField.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, bundle.getString("source.placeholder"));
+        criteriaLabel.setText(bundle.getString("search.config.label"));
+        thresholdLabel.setText(bundle.getString("search.label.threshold"));
+        limitLabel.setText(bundle.getString("search.label.topn"));
+        executeBtn.setText(bundle.getString("search.button.run"));
+        csvBtn.setText(bundle.getString("search.button.csv"));
+        excelBtn.setText(bundle.getString("search.button.excel"));
+        githubLink.setToolTipText(bundle.getString("footer.github.tip"));
+        loadingIcon.setText(bundle.getString("status.ready"));
+        
+        // Update Table Columns
+        String[] columnNames = {
+            bundle.getString("table.col.index"),
+            bundle.getString("table.col.fn"),
+            bundle.getString("table.col.sfn"),
+            bundle.getString("table.col.pfn"),
+            bundle.getString("table.col.ln"),
+            bundle.getString("table.col.sln"),
+            bundle.getString("table.col.pln"),
+            bundle.getString("table.col.score")
+        };
+        tableModel.setColumnIdentifiers(columnNames);
+        applyTableColumnStyles(); 
+
+        fnLine.updateTexts(bundle, bundle.getString("search.label.fn"));
+        lnLine.updateTexts(bundle, bundle.getString("search.label.ln"));
+        
+        if (statusLabel != null && !statusLabel.getText().contains("Searching")) {
+            statusLabel.setText(bundle.getString("status.ready"));
         }
     }
 
@@ -274,7 +369,7 @@ public class UI extends JFrame {
         try {
             File f = new File(path);
             if (!f.exists()) {
-                JOptionPane.showMessageDialog(this, "File not found: " + f.getAbsolutePath());
+                JOptionPane.showMessageDialog(this, MessageFormat.format(bundle.getString("dialog.error.file_not_found"), f.getAbsolutePath()));
                 database = new ArrayList<>();
                 return;
             }
@@ -287,11 +382,11 @@ public class UI extends JFrame {
                 .toList();
             
             if (statusLabel != null) {
-                statusLabel.setText("Database loaded: " + database.size() + " records.");
+                statusLabel.setText(MessageFormat.format(bundle.getString("status.total"), database.size()));
             }
         } catch (IOException e) {
             e.printStackTrace();
-            JOptionPane.showMessageDialog(this, "Error loading file: " + e.getMessage());
+            JOptionPane.showMessageDialog(this, MessageFormat.format(bundle.getString("dialog.error.load_error"), e.getMessage()));
         }
     }
     
@@ -301,7 +396,7 @@ public class UI extends JFrame {
         mainPanel.putClientProperty(FlatClientProperties.STYLE, "arc: 15; background: #ffffff; ");
         mainPanel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
 
-        JLabel criteriaLabel = new JLabel("Search Configuration:");
+        criteriaLabel = new JLabel("Search Configuration:");
         criteriaLabel.setFont(new Font("SansSerif", Font.BOLD, 13));
         criteriaLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 10, 0));
         mainPanel.add(criteriaLabel);
@@ -314,7 +409,8 @@ public class UI extends JFrame {
 
         JPanel bottomBar = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         
-        bottomBar.add(new JLabel("Global Threshold:"));
+        thresholdLabel = new JLabel("Global Threshold:");
+        bottomBar.add(thresholdLabel);
         globalThresholdField = new JSpinner(new SpinnerNumberModel(0.3, 0.0, 1.0, 0.05));
         globalThresholdField.putClientProperty(FlatClientProperties.STYLE, "arc: 8; ");
         globalThresholdField.setPreferredSize(new Dimension(80, 30));
@@ -323,7 +419,8 @@ public class UI extends JFrame {
         bottomBar.add(globalThresholdField);
 
         bottomBar.add(Box.createHorizontalStrut(15));
-        bottomBar.add(new JLabel("Top N Limit:"));
+        limitLabel = new JLabel("Top N Limit:");
+        bottomBar.add(limitLabel);
         topNField = new JTextField("1000", 5);
         topNField.putClientProperty(FlatClientProperties.STYLE, "arc: 8; ");
         topNField.addActionListener(e -> { topNField.selectAll(); performSearch(); });
@@ -341,12 +438,12 @@ public class UI extends JFrame {
         executeBtn.addActionListener(e -> performSearch());
         bottomBar.add(executeBtn);
 
-        JButton csvBtn = new JButton("Export CSV");
+        csvBtn = new JButton("Export CSV");
         csvBtn.putClientProperty(FlatClientProperties.STYLE, "buttonType: toolBarButton");
         csvBtn.addActionListener(e -> exportToCSV());
         bottomBar.add(csvBtn);
 
-        JButton excelBtn = new JButton("Export Excel");
+        excelBtn = new JButton("Export Excel");
         excelBtn.putClientProperty(FlatClientProperties.STYLE, "buttonType: toolBarButton");
         excelBtn.addActionListener(e -> exportToExcel());
         bottomBar.add(excelBtn);
@@ -394,44 +491,7 @@ public class UI extends JFrame {
             }
         });
         
-        // Adjust column widths roughly
-        resultTable.getColumnModel().getColumn(0).setPreferredWidth(40); // Index column
-        resultTable.getColumnModel().getColumn(1).setPreferredWidth(150); // FN column
-        resultTable.getColumnModel().getColumn(4).setPreferredWidth(150); // LN column
-        
-        // Column Alignment
-        javax.swing.table.DefaultTableCellRenderer centerRenderer = new javax.swing.table.DefaultTableCellRenderer();
-        centerRenderer.setHorizontalAlignment(javax.swing.JLabel.CENTER);
-        resultTable.getColumnModel().getColumn(0).setCellRenderer(centerRenderer);
-        
-        javax.swing.table.DefaultTableCellRenderer rightRenderer = new javax.swing.table.DefaultTableCellRenderer();
-        rightRenderer.setHorizontalAlignment(javax.swing.JLabel.RIGHT);
-        resultTable.getColumnModel().getColumn(2).setCellRenderer(rightRenderer); // Spell FN
-        resultTable.getColumnModel().getColumn(3).setCellRenderer(rightRenderer); // Phon FN
-        resultTable.getColumnModel().getColumn(5).setCellRenderer(rightRenderer); // Spell LN
-        resultTable.getColumnModel().getColumn(6).setCellRenderer(rightRenderer); // Phon LN
-        resultTable.getColumnModel().getColumn(7).setCellRenderer(rightRenderer); // Total Score
-        
-        // Header Alignment
-        javax.swing.table.DefaultTableCellRenderer centerHeader = new javax.swing.table.DefaultTableCellRenderer();
-        centerHeader.setHorizontalAlignment(javax.swing.JLabel.CENTER);
-        centerHeader.setBackground(new Color(232, 234, 246));
-        centerHeader.setForeground(new Color(63, 81, 181));
-        centerHeader.setFont(new Font("SansSerif", Font.BOLD, 12));
-        centerHeader.setBorder(UIManager.getBorder("TableHeader.cellBorder"));
-        resultTable.getColumnModel().getColumn(0).setHeaderRenderer(centerHeader);
-
-        javax.swing.table.DefaultTableCellRenderer rightHeader = new javax.swing.table.DefaultTableCellRenderer();
-        rightHeader.setHorizontalAlignment(javax.swing.JLabel.RIGHT);
-        rightHeader.setBackground(new Color(232, 234, 246));
-        rightHeader.setForeground(new Color(63, 81, 181));
-        rightHeader.setFont(new Font("SansSerif", Font.BOLD, 12));
-        rightHeader.setBorder(UIManager.getBorder("TableHeader.cellBorder"));
-        resultTable.getColumnModel().getColumn(2).setHeaderRenderer(rightHeader);
-        resultTable.getColumnModel().getColumn(3).setHeaderRenderer(rightHeader);
-        resultTable.getColumnModel().getColumn(5).setHeaderRenderer(rightHeader);
-        resultTable.getColumnModel().getColumn(6).setHeaderRenderer(rightHeader);
-        resultTable.getColumnModel().getColumn(7).setHeaderRenderer(rightHeader);
+        applyTableColumnStyles();
 
         JScrollPane scrollPane = new JScrollPane(resultTable);
         scrollPane.setBorder(BorderFactory.createEmptyBorder(0, 10, 10, 10));
@@ -444,7 +504,7 @@ public class UI extends JFrame {
         loadingContent.setLayout(new BoxLayout(loadingContent, BoxLayout.Y_AXIS));
         loadingContent.setOpaque(false);
         
-        JLabel loadingIcon = new JLabel("Searching..."); 
+        loadingIcon = new JLabel("Searching..."); 
         loadingIcon.setFont(new Font("SansSerif", Font.BOLD, 18));
         loadingIcon.setForeground(new Color(63, 81, 181));
         loadingIcon.setAlignmentX(JLabel.CENTER_ALIGNMENT);
@@ -469,6 +529,49 @@ public class UI extends JFrame {
         
         add(centerPanel, BorderLayout.CENTER);
     }
+
+    private void applyTableColumnStyles() {
+        if (resultTable == null) return;
+        
+        // Adjust column widths roughly
+        resultTable.getColumnModel().getColumn(0).setPreferredWidth(40); // Index column
+        resultTable.getColumnModel().getColumn(1).setPreferredWidth(150); // FN column
+        resultTable.getColumnModel().getColumn(4).setPreferredWidth(150); // LN column
+        
+        // Column Alignment
+        javax.swing.table.DefaultTableCellRenderer centerRenderer = new javax.swing.table.DefaultTableCellRenderer();
+        centerRenderer.setHorizontalAlignment(javax.swing.JLabel.CENTER);
+        resultTable.getColumnModel().getColumn(0).setCellRenderer(centerRenderer);
+        
+        javax.swing.table.DefaultTableCellRenderer rightRenderer = new javax.swing.table.DefaultTableCellRenderer();
+        rightRenderer.setHorizontalAlignment(javax.swing.JLabel.RIGHT);
+        resultTable.getColumnModel().getColumn(2).setCellRenderer(rightRenderer); 
+        resultTable.getColumnModel().getColumn(3).setCellRenderer(rightRenderer); 
+        resultTable.getColumnModel().getColumn(5).setCellRenderer(rightRenderer); 
+        resultTable.getColumnModel().getColumn(6).setCellRenderer(rightRenderer); 
+        resultTable.getColumnModel().getColumn(7).setCellRenderer(rightRenderer); 
+        
+        // Header Alignment
+        javax.swing.table.DefaultTableCellRenderer centerHeader = new javax.swing.table.DefaultTableCellRenderer();
+        centerHeader.setHorizontalAlignment(javax.swing.JLabel.CENTER);
+        centerHeader.setBackground(new Color(232, 234, 246));
+        centerHeader.setForeground(new Color(63, 81, 181));
+        centerHeader.setFont(new Font("SansSerif", Font.BOLD, 12));
+        centerHeader.setBorder(UIManager.getBorder("TableHeader.cellBorder"));
+        resultTable.getColumnModel().getColumn(0).setHeaderRenderer(centerHeader);
+
+        javax.swing.table.DefaultTableCellRenderer rightHeader = new javax.swing.table.DefaultTableCellRenderer();
+        rightHeader.setHorizontalAlignment(javax.swing.JLabel.RIGHT);
+        rightHeader.setBackground(new Color(232, 234, 246));
+        rightHeader.setForeground(new Color(63, 81, 181));
+        rightHeader.setFont(new Font("SansSerif", Font.BOLD, 12));
+        rightHeader.setBorder(UIManager.getBorder("TableHeader.cellBorder"));
+        resultTable.getColumnModel().getColumn(2).setHeaderRenderer(rightHeader);
+        resultTable.getColumnModel().getColumn(3).setHeaderRenderer(rightHeader);
+        resultTable.getColumnModel().getColumn(5).setHeaderRenderer(rightHeader);
+        resultTable.getColumnModel().getColumn(6).setHeaderRenderer(rightHeader);
+        resultTable.getColumnModel().getColumn(7).setHeaderRenderer(rightHeader);
+    }
     
     private void performSearch() {
         // Prevent concurrent searches
@@ -490,7 +593,7 @@ public class UI extends JFrame {
             // UI Preparation
             setCursor(java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.WAIT_CURSOR));
             if (executeBtn != null) executeBtn.setEnabled(false);
-            if (statusLabel != null) statusLabel.setText("<html>Searching...</html>");
+            if (statusLabel != null) statusLabel.setText(bundle.getString("status.loading"));
             
             // Switch to loading view
             centerCardLayout.show(centerPanel, CARD_LOADING);
@@ -517,7 +620,7 @@ public class UI extends JFrame {
                         updateResults(searchResult, criteriaList);
                     } catch (Exception e) {
                         e.printStackTrace();
-                        JOptionPane.showMessageDialog(UI.this, "Search error: " + e.getMessage());
+                        JOptionPane.showMessageDialog(UI.this, MessageFormat.format(bundle.getString("dialog.error.search_error"), e.getMessage()));
                         statusLabel.setText("<html>Error occurred.</html>");
                     } finally {
                         // UI Cleanup
@@ -537,7 +640,7 @@ public class UI extends JFrame {
 
         } catch (Exception e) {
             e.printStackTrace();
-            JOptionPane.showMessageDialog(this, "Setup error: " + e.getMessage());
+            JOptionPane.showMessageDialog(this, MessageFormat.format(bundle.getString("dialog.error.setup_error"), e.getMessage()));
             // Ensure UI is reset if synchronous setup fails
             setCursor(java.awt.Cursor.getDefaultCursor());
             if (executeBtn != null) executeBtn.setEnabled(true);
@@ -580,26 +683,26 @@ public class UI extends JFrame {
             
             // Header Row
             statusMsg.append("<tr>");
-            statusMsg.append("<td align='left'><b>Metric</b></td><td width='20'></td>");
-            statusMsg.append("<td align='right'><b>Total</b></td><td width='20'></td>");
-            statusMsg.append("<td align='left'><b>FN</b></td><td width='20'></td>");
-            statusMsg.append("<td align='right'><b>S%</b></td><td width='20'></td>");
-            statusMsg.append("<td align='right'><b>P%</b></td><td width='20'></td>");
-            statusMsg.append("<td align='left'><b>LN</b></td><td width='20'></td>");
-            statusMsg.append("<td align='right'><b>S%</b></td><td width='20'></td>");
-            statusMsg.append("<td align='right'><b>P%</b></td>");
+            statusMsg.append("<td align='left'><b>").append(bundle.getString("search.metrics.label")).append("</b></td><td width='20'></td>");
+            statusMsg.append("<td align='right'><b>").append(bundle.getString("search.metrics.total")).append("</b></td><td width='20'></td>");
+            statusMsg.append("<td align='left'><b>").append(bundle.getString("search.metrics.fn")).append("</b></td><td width='20'></td>");
+            statusMsg.append("<td align='right'><b>").append(bundle.getString("search.metrics.s")).append("</b></td><td width='20'></td>");
+            statusMsg.append("<td align='right'><b>").append(bundle.getString("search.metrics.p")).append("</b></td><td width='20'></td>");
+            statusMsg.append("<td align='left'><b>").append(bundle.getString("search.metrics.ln")).append("</b></td><td width='20'></td>");
+            statusMsg.append("<td align='right'><b>").append(bundle.getString("search.metrics.s")).append("</b></td><td width='20'></td>");
+            statusMsg.append("<td align='right'><b>").append(bundle.getString("search.metrics.p")).append("</b></td>");
             statusMsg.append("</tr>");
 
             // Helper to generate row for a candidate
-            generateStatusRow(statusMsg, "Max Under GT:", searchResult.getMaxUnderCandidate(), searchResult.getMaxUnderThreshold());
-            generateStatusRow(statusMsg, "Min Above GT:", searchResult.getMinAboveCandidate(), searchResult.getMinAboveThreshold());
-            generateStatusRow(statusMsg, "Max Above:", searchResult.getMaxAboveCandidate(), searchResult.getMaxAboveThreshold());
+            generateStatusRow(statusMsg, bundle.getString("search.metrics.max_under"), searchResult.getMaxUnderCandidate(), searchResult.getMaxUnderThreshold());
+            generateStatusRow(statusMsg, bundle.getString("search.metrics.min_above"), searchResult.getMinAboveCandidate(), searchResult.getMinAboveThreshold());
+            generateStatusRow(statusMsg, bundle.getString("search.metrics.max_above"), searchResult.getMaxAboveCandidate(), searchResult.getMaxAboveThreshold());
             
             statusMsg.append("</table></html>");
             statusLabel.setText(statusMsg.toString());
             
             // Update separate Total Label
-            totalLabel.setText("Total Found: " + searchResult.getTotalFound());
+            totalLabel.setText(MessageFormat.format(bundle.getString("status.total"), searchResult.getTotalFound()));
             
             // Save original table data for sorting
             originalTableData = new ArrayList<>();
@@ -616,10 +719,10 @@ public class UI extends JFrame {
             sortState = 0;
             
         } catch (NumberFormatException e) {
-            JOptionPane.showMessageDialog(this, "Weights and Min Scores must be valid numbers.");
+            JOptionPane.showMessageDialog(this, bundle.getString("dialog.error.numbers"));
         } catch (Exception e) {
             e.printStackTrace(); 
-            JOptionPane.showMessageDialog(this, "Search error: " + e.getMessage());
+            JOptionPane.showMessageDialog(this, MessageFormat.format(bundle.getString("dialog.error.search_error"), e.getMessage()));
         }
     }
     
@@ -761,7 +864,7 @@ public class UI extends JFrame {
 
     private void exportToCSV() {
         if (tableModel.getRowCount() == 0) {
-            JOptionPane.showMessageDialog(this, "No data to export.");
+            JOptionPane.showMessageDialog(this, bundle.getString("dialog.export.no_data"));
             return;
         }
         promptAndSaveCSV(new File("search_results.csv"));
@@ -774,8 +877,8 @@ public class UI extends JFrame {
             File selectedFile = chooser.getSelectedFile();
             if (selectedFile.exists()) {
                 int response = JOptionPane.showConfirmDialog(this,
-                    "The file '" + selectedFile.getName() + "' already exists. Do you want to replace it?",
-                    "Confirm Overwrite",
+                    MessageFormat.format(bundle.getString("dialog.export.replace_confirm"), selectedFile.getName()),
+                    bundle.getString("dialog.export.replace_title"),
                     JOptionPane.YES_NO_CANCEL_OPTION,
                     JOptionPane.WARNING_MESSAGE);
                 
@@ -808,13 +911,13 @@ public class UI extends JFrame {
             }
         } catch (IOException e) {
             e.printStackTrace();
-            JOptionPane.showMessageDialog(this, "Export failed: " + e.getMessage());
+            JOptionPane.showMessageDialog(this, MessageFormat.format(bundle.getString("dialog.export.failed"), e.getMessage()));
         }
     }
 
     private void exportToExcel() {
         if (tableModel.getRowCount() == 0) {
-            JOptionPane.showMessageDialog(this, "No data to export.");
+            JOptionPane.showMessageDialog(this, bundle.getString("dialog.export.no_data"));
             return;
         }
         promptAndSaveExcel(new File("search_results.xlsx"));
@@ -828,8 +931,8 @@ public class UI extends JFrame {
             File selectedFile = chooser.getSelectedFile();
             if (selectedFile.exists()) {
                 int response = JOptionPane.showConfirmDialog(this,
-                    "The file '" + selectedFile.getName() + "' already exists. Do you want to replace it?",
-                    "Confirm Overwrite",
+                    MessageFormat.format(bundle.getString("dialog.export.replace_confirm"), selectedFile.getName()),
+                    bundle.getString("dialog.export.replace_title"),
                     JOptionPane.YES_NO_CANCEL_OPTION,
                     JOptionPane.WARNING_MESSAGE);
                 
@@ -937,7 +1040,7 @@ public class UI extends JFrame {
                 }
             } catch (Exception e) {
                 e.printStackTrace();
-                JOptionPane.showMessageDialog(this, "Export failed: " + e.getMessage());
+                JOptionPane.showMessageDialog(this, MessageFormat.format(bundle.getString("dialog.export.failed"), e.getMessage()));
             }
     }
 
@@ -949,6 +1052,10 @@ public class UI extends JFrame {
         private JSpinner minPhoneticField;
         private JLabel minSpellingLabel;
         private JLabel minPhoneticLabel;
+        private JLabel mainLabel;
+        private JLabel valueLabel;
+        private JLabel typeLabel;
+        private JLabel weightLabel;
         private final Runnable onEnter;
 
         public CriteriaLine(String label, String defaultValue, Runnable onEnter) {
@@ -956,24 +1063,27 @@ public class UI extends JFrame {
             setLayout(new FlowLayout(FlowLayout.LEFT, 12, 8));
             setOpaque(false);
             
-            JLabel lbl = new JLabel(label);
-            lbl.setFont(new Font("SansSerif", Font.BOLD, 13));
-            lbl.setPreferredSize(new Dimension(100, 25));
-            add(lbl);
+            mainLabel = new JLabel(label);
+            mainLabel.setFont(new Font("SansSerif", Font.BOLD, 13));
+            mainLabel.setPreferredSize(new Dimension(100, 25));
+            add(mainLabel);
 
-            add(new JLabel("Value:"));
+            valueLabel = new JLabel("Value:");
+            add(valueLabel);
             valueField = new JTextField(defaultValue, 12);
             valueField.putClientProperty(FlatClientProperties.STYLE, "arc: 8");
             valueField.addActionListener(e -> { valueField.selectAll(); onEnter.run(); });
             add(valueField);
 
-            add(new JLabel("Type:"));
+            typeLabel = new JLabel("Type:");
+            add(typeLabel);
             typeCombo = new JComboBox<>(Criteria.MatchingType.values());
             typeCombo.setSelectedItem(Criteria.MatchingType.SIMILARITY);
             typeCombo.putClientProperty(FlatClientProperties.STYLE, "arc: 8");
             add(typeCombo);
 
-            add(new JLabel("Weight:"));
+            weightLabel = new JLabel("Weight:");
+            add(weightLabel);
             weightSpinner = new JSpinner(new SpinnerNumberModel(1, 0, 100, 1));
             weightSpinner.putClientProperty(FlatClientProperties.STYLE, "arc: 8; ");
             weightSpinner.addChangeListener(e -> onEnter.run());
@@ -1057,6 +1167,15 @@ public class UI extends JFrame {
             weightSpinner.setValue(cc.weight);
             minSpellingField.setValue(cc.minSpelling);
             minPhoneticField.setValue(cc.minPhonetic);
+        }
+
+        public void updateTexts(ResourceBundle bundle, String mainLabelText) {
+            mainLabel.setText(mainLabelText);
+            valueLabel.setText(bundle.getString("search.criteria.value"));
+            typeLabel.setText(bundle.getString("search.criteria.type"));
+            weightLabel.setText(bundle.getString("search.criteria.weight"));
+            minSpellingLabel.setText(bundle.getString("search.criteria.min_spell"));
+            minPhoneticLabel.setText(bundle.getString("search.criteria.min_phon"));
         }
     }
     
