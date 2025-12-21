@@ -189,11 +189,44 @@ public class UI extends JFrame {
         
         statusBar.add(westStatusPanel, BorderLayout.WEST);
         
-        JLabel versionLabel = new JLabel("POC 2025-12");
+
+        JPanel eastStatusPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 15, 0));
+        eastStatusPanel.setOpaque(false);
+        
+        JLabel githubLink = new JLabel("<html><u>GitHub</u></html>");
+        githubLink.setForeground(Color.WHITE);
+        githubLink.setFont(new Font("SansSerif", Font.PLAIN, 10));
+        githubLink.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
+        githubLink.setToolTipText("Open Makfuzz Project on GitHub");
+        githubLink.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseClicked(java.awt.event.MouseEvent e) {
+                try {
+                    if (java.awt.Desktop.isDesktopSupported() && java.awt.Desktop.getDesktop().isSupported(java.awt.Desktop.Action.BROWSE)) {
+                        java.awt.Desktop.getDesktop().browse(new java.net.URI("https://github.com/melkarama/makfuzz"));
+                    }
+                } catch (Exception ex) { 
+                    ex.printStackTrace(); 
+                }
+            }
+            @Override
+            public void mouseEntered(java.awt.event.MouseEvent e) {
+                githubLink.setForeground(new Color(187, 222, 251)); // Lighter blue
+            }
+            @Override
+            public void mouseExited(java.awt.event.MouseEvent e) {
+                githubLink.setForeground(Color.WHITE);
+            }
+        });
+        
+        JLabel versionLabel = new JLabel("v1.0 2025");
         versionLabel.setForeground(new Color(255, 255, 255, 180));
         versionLabel.setFont(new Font("SansSerif", Font.PLAIN, 9));
         
-        statusBar.add(versionLabel, BorderLayout.EAST);
+        eastStatusPanel.add(githubLink);
+        eastStatusPanel.add(versionLabel);
+        
+        statusBar.add(eastStatusPanel, BorderLayout.EAST);
         
         add(statusBar, BorderLayout.SOUTH);
         
