@@ -65,7 +65,7 @@ Built with robust, industry-standard libraries:
 
 2.  **Run It**:
     ```bash
-    java -jar target/makfuzz-0.0.1-SNAPSHOT-shaded.jar
+    java -jar makfuzz-1.0.jar
     ```
 
 3.  **Use It**:
