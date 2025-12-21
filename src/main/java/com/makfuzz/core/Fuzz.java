@@ -4,7 +4,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import de.zedlitz.phonet4java.Phonet2;
 import org.apache.commons.text.similarity.JaroWinklerSimilarity;
 
 public class Fuzz {
@@ -12,7 +11,8 @@ public class Fuzz {
 	static final String SEP = "[,;]";
 	private static final JaroWinklerSimilarity SPELLING_STRATEGY = new JaroWinklerSimilarity();
 	
-	private static final Phonet2 PHONETIC_ENGINE = new Phonet2();
+	// Custom French phonetic encoder
+	private static final FrenchSoundex PHONETIC_ENGINE = new FrenchSoundex();
 
 	// Cache to avoid recalculating expensive phonetic codes for repeating names
 	// This makes a HUGE difference in performance on large datasets
@@ -40,7 +40,7 @@ public class Fuzz {
 				totalWeight += cI.weight;
 				criteriaValues[i] = cI.value;
 				// PRE-OPTIMIZATION: Calculate search criteria phonetic code ONCE
-				criteriaPhoneticCodes[i] = PHONETIC_ENGINE.code(cI.value);
+				criteriaPhoneticCodes[i] = PHONETIC_ENGINE.encode(cI.value);
 			}
 		}
 
@@ -94,9 +94,9 @@ public class Fuzz {
 							// 1. Calculate Spelling (Jaro-Winkler)
 							spellingScore = SPELLING_STRATEGY.apply(cellValue, criteriaValues[i]);
 							
-							// 2. Calculate Fuzzy Phonetic Score (phonet4java)
+							// 2. Calculate Fuzzy Phonetic Score (French Soundex)
 							// CACHING: Use the cache for cells, but pre-calculated codes for criteria
-							String code1 = PHONETIC_CACHE.computeIfAbsent(cellValue, PHONETIC_ENGINE::code);
+							String code1 = PHONETIC_CACHE.computeIfAbsent(cellValue, PHONETIC_ENGINE::encode);
 							String code2 = criteriaPhoneticCodes[i];
 							
 							if (code1.equals(code2)) {
