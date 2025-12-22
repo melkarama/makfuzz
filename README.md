@@ -25,11 +25,13 @@ It goes beyond simple string matching by combining **Spelling Similarity** (how 
 - **Phonetic Strategy**: Powered by `Beider-Morse` and `Double Metaphone`, it understands how names *sound* across different languages (French, English, Generic).
 
 ### 🎛️ Granular Control
-- **Weighted Criteria**: Is the *Last Name* more important than the *First Name*? You decide! assigns weights (e.g., 60/40) to drive your scoring logic.
-- **Strict Threshods**: Set minimum quality bars. E.g., "Must be at least 80% phonetically similar to even be considered."
+- **Dynamic Column Selection**: Choose any columns from your CSV to use as search criteria—not limited to first/last names!
+- **Weighted Criteria**: Assign different importance to each criterion (e.g., Weight 1 vs Weight 3) to drive your scoring logic.
+- **Multiple Criteria**: Match on as many columns as you need—mix and match names, IDs, addresses, or any data fields.
+- **Strict Thresholds**: Set minimum quality bars per criterion. E.g., "Must be at least 80% phonetically similar to even be considered."
 
 ### 📊 Rich Analytics
-- **Live Dashboard**: See real-time breakdown of scores:
+- **Live Dashboard**: See real-time breakdown of scores for each criterion:
   - `S%` (Spelling Score)
   - `P%` (Phonetic Score)
   - `Total Score` (Weighted Average)
@@ -39,10 +41,16 @@ It goes beyond simple string matching by combining **Spelling Similarity** (how 
   - **Total**: Instant count of all findings.
 
 ### 💾 Smart Persistence
-- **Auto-Save**: Closing the app? No stress! MakFuzz saves your entire workspace (paths, weights, thresholds) to `~/.makfuzz_config.xml` automatically. It’s ready exactly as you left it next time. 🔄
+- **Auto-Save**: Closing the app? No stress! MakFuzz saves your entire workspace (paths, weights, thresholds, selected columns) to `~/.makfuzz_config.xml` automatically. It's ready exactly as you left it next time. 🔄
 
 ### 📤 Export Power
 - **CSV & Excel**: One-click export of your filtered results to standard formats.
+- **Enhanced Excel Export**:
+  - Color-coded headers (blue for synthesis columns, green for original data)
+  - Auto-filter enabled on all columns
+  - Frozen panes to keep search results visible while scrolling
+  - Auto-sized columns for perfect readability
+  - Full original row data appended as individual columns
 
 ![Excel Export Screenshot](assets/excel_export.png)
 
@@ -76,10 +84,11 @@ Built with robust, industry-standard libraries:
 3.  **Use It**:
     - **Step 1**: Point it to a CSV file (using `,` or `;` separators).
       > [!IMPORTANT]
-      > The file must include a **header line**. It should have at least **two columns**: the first column must be the **First Name** and the second (last) must be the **Last Name**.
-    - **Step 2**: Enter search terms (FN/LN).
-    - **Step 3**: Tweak your weights (e.g., Weight 1 for FN, Weight 3 for LN).
-    - **Step 4**: Hit **Run Search** and watch the magic happen! ✨
+      > The file must include a **header line** with column names.
+    - **Step 2**: Select which columns you want to use as search criteria from a dialog.
+    - **Step 3**: Enter search terms for each criterion.
+    - **Step 4**: Adjust weights and thresholds for each criterion to fine-tune your matches.
+    - **Step 5**: Hit **Run Search** and watch the magic happen! ✨
 
 ---
 
@@ -92,10 +101,10 @@ MakFuzz isn't just a tool; it's a productivity booster designed to make data cle
 ---
 
 ## 🗺️ Roadmap
-We're constantly evolving! Here’s what we're planning for future releases:
-- [ ] **Dynamic Column Support**: Load any CSV file regardless of its structure.
-- [ ] **Generic Criteria Mapping**: Match any number of columns with custom labels (not just First Name/Last Name).
+We're constantly evolving! Here's what we're planning for future releases:
 - [ ] **Auto-Detection**: Smart detection of column types and suggested weights.
+- [ ] **Contextual Similarity**: Incorporate semantic understanding for even smarter matching.
+- [ ] **Batch Processing**: Process multiple files in one go.
 
 ---
 
