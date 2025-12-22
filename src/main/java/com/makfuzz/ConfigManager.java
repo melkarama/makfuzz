@@ -16,15 +16,15 @@ public class ConfigManager {
         public int topN = 1000;
         public String language = "en";
         
-        @XmlElement(name = "FirstName")
-        public CriteriaConfig fnCriteria;
-        
-        @XmlElement(name = "LastName")
-        public CriteriaConfig lnCriteria;
+        @XmlElementWrapper(name = "SelectedCriteria")
+        @XmlElement(name = "Criteria")
+        public java.util.List<CriteriaConfig> criteriaList = new java.util.ArrayList<>();
     }
 
     @XmlAccessorType(XmlAccessType.FIELD)
     public static class CriteriaConfig {
+        public String columnName = "";
+        public int columnIndex = -1;
         public String value = "";
         public String type = "SIMILARITY"; 
         public int weight = 1;
