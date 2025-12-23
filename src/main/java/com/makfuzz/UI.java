@@ -170,6 +170,7 @@ public class UI extends JFrame {
         appSubtitle.setFont(new Font("SansSerif", Font.PLAIN, 12));
         appSubtitle.setForeground(Color.GRAY);
         titleBox.add(appSubtitle, BorderLayout.SOUTH);
+        titleBox.setAlignmentX(JLabel.LEFT_ALIGNMENT);
         headerPanel.add(titleBox);
         headerPanel.add(Box.createVerticalStrut(20));
 
@@ -193,6 +194,7 @@ public class UI extends JFrame {
 
         sourcePanel.add(sourcePathField);
         sourcePanel.add(browseBtn);
+        sourcePanel.setAlignmentX(JLabel.LEFT_ALIGNMENT);
 
         headerPanel.add(sourcePanel);
         headerPanel.add(Box.createVerticalStrut(15));
@@ -559,24 +561,25 @@ public class UI extends JFrame {
     private void setupTopPanel(JPanel parent) {
         JPanel mainPanel = new JPanel();
         mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
-        mainPanel.setBackground(Color.WHITE);
-        mainPanel.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(new Color(230, 230, 230)),
-            BorderFactory.createEmptyBorder(15, 15, 15, 15)
-        ));
-
+        mainPanel.setAlignmentX(JLabel.LEFT_ALIGNMENT);
+        mainPanel.putClientProperty(FlatClientProperties.STYLE, "arc: 15; background: #ffffff; ");
+        mainPanel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
 
         criteriaLabel = new JLabel("Search Configuration:");
         criteriaLabel.setFont(new Font("SansSerif", Font.BOLD, 13));
+        criteriaLabel.setAlignmentX(JLabel.LEFT_ALIGNMENT);
         criteriaLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 10, 0));
         mainPanel.add(criteriaLabel);
 
         criteriaContainer = new JPanel();
         criteriaContainer.setLayout(new BoxLayout(criteriaContainer, BoxLayout.Y_AXIS));
         criteriaContainer.setOpaque(false);
+        criteriaContainer.setAlignmentX(JLabel.LEFT_ALIGNMENT);
         mainPanel.add(criteriaContainer);
 
         JPanel bottomBar = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        bottomBar.setAlignmentX(JLabel.LEFT_ALIGNMENT);
+        bottomBar.setOpaque(false);
         
         JLabel searchLangLabel = new JLabel("Search Lang:");
         bottomBar.add(searchLangLabel);
@@ -1535,6 +1538,7 @@ public class UI extends JFrame {
             this.onEnter = onEnter;
             setLayout(new FlowLayout(FlowLayout.LEFT, 12, 8));
             setOpaque(false);
+            setAlignmentX(JLabel.LEFT_ALIGNMENT);
             
             removeBtn = new JButton("×");
             removeBtn.setToolTipText("Remove this criterion");
@@ -1549,6 +1553,7 @@ public class UI extends JFrame {
 
             mainLabel = new JLabel(colName);
             mainLabel.setFont(new Font("SansSerif", Font.BOLD, 13));
+            mainLabel.setHorizontalAlignment(JLabel.LEFT);
             mainLabel.setPreferredSize(new Dimension(100, 25));
             add(mainLabel);
 
