@@ -55,8 +55,8 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
-import com.formdev.flatlaf.FlatClientProperties;
-import com.formdev.flatlaf.FlatIntelliJLaf;
+import org.pushingpixels.radiance.theming.api.RadianceThemingCortex;
+import org.pushingpixels.radiance.theming.api.RadianceThemingSlices;
 import com.makfuzz.core.Criteria;
 import com.makfuzz.core.Fuzz;
 import com.makfuzz.core.SearchResult;
@@ -107,6 +107,7 @@ public class UI extends JFrame {
     private JLabel loadingIcon;
     
     private boolean searchPending = false;
+    private boolean isInitializing = false;
     
     // Card Layout for Center Panel
     private CardLayout centerCardLayout;
@@ -115,18 +116,25 @@ public class UI extends JFrame {
     private static final String CARD_LOADING = "LOADING";
     
     public UI() {
-        // Apply Modern Theme
+        // Apply Radiance Mariner Theme for a trending, high-fidelity modern UI
         try {
-            UIManager.setLookAndFeel(new FlatIntelliJLaf());
-            UIManager.put("Button.arc", 8);
-            UIManager.put("Component.arc", 8);
-            UIManager.put("ProgressBar.arc", 8);
-            UIManager.put("TextComponent.arc", 8);
-            UIManager.put("Component.focusWidth", 1);
-            UIManager.put("ScrollBar.trackArc", 999);
-            UIManager.put("ScrollBar.thumbArc", 999);
-            UIManager.put("ScrollBar.track", new Color(0xf5f5f5));
-        } catch (Exception ignored) {}
+            UIManager.setLookAndFeel("org.pushingpixels.radiance.theming.api.skin.RadianceMarinerLookAndFeel");
+            
+            // Global overrides for consistent UI
+            UIManager.put("Button.font", new Font("SansSerif", Font.BOLD, 12));
+            UIManager.put("TextField.font", new Font("SansSerif", Font.PLAIN, 12));
+            UIManager.put("ComboBox.font", new Font("SansSerif", Font.PLAIN, 12));
+            UIManager.put("Table.rowHeight", 28);
+            
+            // Optimization for Windows JFileChooser performance
+            if (System.getProperty("os.name").toLowerCase().contains("win")) {
+                UIManager.put("FileChooser.useShellFolder", Boolean.FALSE);
+            }
+        } catch (Exception ignored) {
+            try {
+                UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+            } catch (Exception e) {}
+        }
 
         setTitle("MakFuzz - Fuzzy Search ✨");
         setSize(1400, 850);
@@ -167,7 +175,11 @@ public class UI extends JFrame {
 
         // 1. Data Source Card
         JPanel sourcePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 15, 15));
-        sourcePanel.putClientProperty(FlatClientProperties.STYLE, "arc: 15; background: #ffffff; ");
+        sourcePanel.setBackground(Color.WHITE);
+        sourcePanel.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(new Color(230, 230, 230)),
+            BorderFactory.createEmptyBorder(10, 10, 10, 10)
+        ));
         
         srcLabel = new JLabel("Data Source:");
         srcLabel.setFont(new Font("SansSerif", Font.BOLD, 13));
@@ -175,10 +187,8 @@ public class UI extends JFrame {
 
         sourcePathField = new JTextField("./names.csv", 60);
         sourcePathField.setEditable(false);
-        sourcePathField.putClientProperty(FlatClientProperties.STYLE, "showClearButton: true; arc: 8");
         
         browseBtn = new JButton("Browse");
-        browseBtn.putClientProperty(FlatClientProperties.STYLE, "buttonType: toolBarButton; focusWidth: 0");
         browseBtn.addActionListener(e -> chooseFileAndColumns());
 
         sourcePanel.add(sourcePathField);
@@ -197,8 +207,9 @@ public class UI extends JFrame {
         
         // 4. Status Bar
         JPanel statusBar = new JPanel(new BorderLayout());
-        statusBar.setBackground(new Color(63, 81, 181));
-        statusBar.setBorder(BorderFactory.createEmptyBorder(2, 5, 2, 5));
+        statusBar.setBackground(new Color(15, 30, 60)); // Solid Dark Nautical Blue for high contrast
+        // Margin/Padding/Border removed from statusBar
+        statusBar.setBorder(null);
         
         statusLabel = new JLabel("<html>Engine ready...</html>");
         statusLabel.setForeground(Color.WHITE);
@@ -299,46 +310,52 @@ public class UI extends JFrame {
         if (!configFile.exists()) {
 			return;
 		}
-        ConfigManager.AppConfig config = ConfigManager.loadConfig(configFile);
         
-        if (config != null) {
-            sourcePathField.setText(config.sourcePath);
-            try { globalThresholdField.setValue(config.globalThreshold); } catch (Exception e) {}
-            topNField.setText(String.valueOf(config.topN));
+        isInitializing = true;
+        try {
+            ConfigManager.AppConfig config = ConfigManager.loadConfig(configFile);
             
-            if (config.language != null) {
-                if (config.language.equals("fr")) {
-                    currentLocale = Locale.FRENCH;
-                    langCombo.setSelectedItem("FR");
-                } else {
-                    currentLocale = Locale.ENGLISH;
-                    langCombo.setSelectedItem("EN");
+            if (config != null) {
+                sourcePathField.setText(config.sourcePath);
+                try { globalThresholdField.setValue(config.globalThreshold); } catch (Exception e) {}
+                topNField.setText(String.valueOf(config.topN));
+                
+                if (config.language != null) {
+                    if (config.language.equals("fr")) {
+                        currentLocale = Locale.FRENCH;
+                        langCombo.setSelectedItem("FR");
+                    } else {
+                        currentLocale = Locale.ENGLISH;
+                        langCombo.setSelectedItem("EN");
+                    }
+                    bundle = ResourceBundle.getBundle("messages", currentLocale);
+                    updateTexts();
                 }
-                bundle = ResourceBundle.getBundle("messages", currentLocale);
-                updateTexts();
-            }
 
-            if (config.criteriaList != null && !config.criteriaList.isEmpty()) {
-                criteriaContainer.removeAll();
-                criteriaLines.clear();
-                for (ConfigManager.CriteriaConfig cc : config.criteriaList) {
-                    CriteriaLine line = new CriteriaLine(cc.columnName, cc.value, () -> performSearch(), this::removeCriteriaLine);
-                    line.setColumnIndex(cc.columnIndex);
-                    line.setConfig(cc);
-                    criteriaLines.add(line);
-                    criteriaContainer.add(line);
-                }
-                criteriaContainer.revalidate();
-                criteriaContainer.repaint();
-                
-                // Update table columns to match loaded criteria
-                updateTexts();
-                
-                // If we have a path, load data now
-                if (!config.sourcePath.isEmpty()) {
-                    loadData(config.sourcePath);
+                if (config.criteriaList != null && !config.criteriaList.isEmpty()) {
+                    criteriaContainer.removeAll();
+                    criteriaLines.clear();
+                    for (ConfigManager.CriteriaConfig cc : config.criteriaList) {
+                        CriteriaLine line = new CriteriaLine(cc.columnName, cc.value, () -> performSearch(), this::removeCriteriaLine);
+                        line.setColumnIndex(cc.columnIndex);
+                        line.setConfig(cc);
+                        criteriaLines.add(line);
+                        criteriaContainer.add(line);
+                    }
+                    criteriaContainer.revalidate();
+                    criteriaContainer.repaint();
+                    
+                    // Update table columns to match loaded criteria
+                    updateTexts();
                 }
             }
+        } finally {
+            isInitializing = false;
+        }
+
+        // Trigger a single search/load after initialization is complete
+        if (!sourcePathField.getText().isEmpty() && !criteriaLines.isEmpty()) {
+            performSearch();
         }
     }
 
@@ -348,7 +365,6 @@ public class UI extends JFrame {
         appSubtitle.setText(bundle.getString("app.header.subtitle"));
         srcLabel.setText(bundle.getString("source.label"));
         browseBtn.setText(bundle.getString("source.button.browse"));
-        sourcePathField.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, bundle.getString("source.placeholder"));
         criteriaLabel.setText(bundle.getString("search.config.label"));
         thresholdLabel.setText(bundle.getString("search.label.threshold"));
         limitLabel.setText(bundle.getString("search.label.topn"));
@@ -543,8 +559,12 @@ public class UI extends JFrame {
     private void setupTopPanel(JPanel parent) {
         JPanel mainPanel = new JPanel();
         mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
-        mainPanel.putClientProperty(FlatClientProperties.STYLE, "arc: 15; background: #ffffff; ");
-        mainPanel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
+        mainPanel.setBackground(Color.WHITE);
+        mainPanel.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(new Color(230, 230, 230)),
+            BorderFactory.createEmptyBorder(15, 15, 15, 15)
+        ));
+
 
         criteriaLabel = new JLabel("Search Configuration:");
         criteriaLabel.setFont(new Font("SansSerif", Font.BOLD, 13));
@@ -562,8 +582,7 @@ public class UI extends JFrame {
         bottomBar.add(searchLangLabel);
         
         langCombo = new JComboBox<>(new String[]{"EN", "FR"});
-        langCombo.putClientProperty(FlatClientProperties.STYLE, "arc: 8; background: #3f51b5; foreground: #ffffff; focusWidth: 0;");
-        langCombo.setPreferredSize(new Dimension(60, 30));
+        langCombo.setPreferredSize(new Dimension(80, 32));
         langCombo.addActionListener(e -> {
             String selected = (String) langCombo.getSelectedItem();
             if ("EN".equals(selected)) {
@@ -582,8 +601,7 @@ public class UI extends JFrame {
         thresholdLabel = new JLabel("Global Threshold:");
         bottomBar.add(thresholdLabel);
         globalThresholdField = new JSpinner(new SpinnerNumberModel(0.3, 0.0, 1.0, 0.05));
-        globalThresholdField.putClientProperty(FlatClientProperties.STYLE, "arc: 8; ");
-        globalThresholdField.setPreferredSize(new Dimension(80, 30));
+        globalThresholdField.setPreferredSize(new Dimension(100, 32));
         ((JSpinner.DefaultEditor)globalThresholdField.getEditor()).getTextField().addActionListener(e -> performSearch());
         globalThresholdField.addChangeListener(e -> performSearch());
         bottomBar.add(globalThresholdField);
@@ -592,7 +610,7 @@ public class UI extends JFrame {
         limitLabel = new JLabel("Top N Limit:");
         bottomBar.add(limitLabel);
         topNField = new JTextField("1000", 5);
-        topNField.putClientProperty(FlatClientProperties.STYLE, "arc: 8; ");
+        topNField.setPreferredSize(new Dimension(80, 32));
         topNField.addActionListener(e -> { topNField.selectAll(); performSearch(); });
         bottomBar.add(topNField);
         bottomBar.add(Box.createHorizontalStrut(15));
@@ -600,21 +618,25 @@ public class UI extends JFrame {
         bottomBar.add(Box.createHorizontalStrut(15));
         
         executeBtn = new JButton("Run Search");
-        executeBtn.setBackground(new Color(63, 81, 181));
-        executeBtn.setForeground(Color.WHITE);
-        executeBtn.putClientProperty(FlatClientProperties.STYLE, "hoverBackground: #303F9F; pressedBackground: #1a237e; arc: 10");
+        executeBtn.setPreferredSize(new Dimension(210, 32)); // 1.5x original width
+        executeBtn.setBackground(new Color(15, 30, 60)); // Matches footer background
+        executeBtn.setForeground(Color.WHITE); 
+        
+        // Radiance specific: Force white text by preventing theme-based color changes
+        RadianceThemingCortex.ComponentOrParentChainScope.setColorizationFactor(executeBtn, 1.0);
+        
         executeBtn.setFocusPainted(false);
         executeBtn.setFont(new Font("SansSerif", Font.BOLD, 14));
         executeBtn.addActionListener(e -> performSearch());
         bottomBar.add(executeBtn);
 
         csvBtn = new JButton("Export CSV");
-        csvBtn.putClientProperty(FlatClientProperties.STYLE, "buttonType: toolBarButton");
+        csvBtn.setPreferredSize(new Dimension(120, 32));
         csvBtn.addActionListener(e -> exportToCSV());
         bottomBar.add(csvBtn);
 
         excelBtn = new JButton("Export Excel");
-        excelBtn.putClientProperty(FlatClientProperties.STYLE, "buttonType: toolBarButton");
+        excelBtn.setPreferredSize(new Dimension(120, 32));
         excelBtn.addActionListener(e -> exportToExcel());
         bottomBar.add(excelBtn);
 
@@ -649,8 +671,7 @@ public class UI extends JFrame {
         resultTable.getTableHeader().setForeground(new Color(63, 81, 181));
         resultTable.getTableHeader().setFont(new Font("SansSerif", Font.BOLD, 12));
         
-        // Modern alternating colors
-        resultTable.putClientProperty(FlatClientProperties.STYLE, "showHorizontalLines: true; showVerticalLines: true; rowHeight: 28;");
+
         
         // Add double-click listener to table header for sorting
         resultTable.getTableHeader().addMouseListener(new java.awt.event.MouseAdapter() {
@@ -771,6 +792,8 @@ public class UI extends JFrame {
 
     
     private void performSearch() {
+        if (isInitializing) return;
+
         // Prevent concurrent searches
         if (executeBtn != null && !executeBtn.isEnabled()) {
             searchPending = true;
@@ -947,6 +970,7 @@ public class UI extends JFrame {
         }
 
         // Data Rows
+        gbc.insets = new Insets(0, 0, 0, 0); // No vertical margins between rows
         addRowToMetrics(bundle.getString("search.metrics.max_under"), searchResult.getMaxUnderCandidate(), searchResult.getMaxUnderThreshold(), 1, gbc, criteriaList);
         addRowToMetrics(bundle.getString("search.metrics.min_above"), searchResult.getMinAboveCandidate(), searchResult.getMinAboveThreshold(), 2, gbc, criteriaList);
         addRowToMetrics(bundle.getString("search.metrics.max_above"), searchResult.getMaxAboveCandidate(), searchResult.getMaxAboveThreshold(), 3, gbc, criteriaList);
@@ -963,20 +987,18 @@ public class UI extends JFrame {
 
     private void styleMetricLabel(JLabel lbl, int x, int y, GridBagConstraints gbc, boolean left) {
         lbl.setForeground(Color.WHITE);
-        lbl.setFont(new Font("SansSerif", Font.PLAIN, 10));
+        lbl.setFont(new Font("SansSerif", Font.BOLD, 10));
         lbl.setHorizontalAlignment(left ? JLabel.LEFT : JLabel.RIGHT);
-        lbl.setBorder(BorderFactory.createEmptyBorder(2, 8, 2, 8));
+        lbl.setBorder(BorderFactory.createEmptyBorder(0, 10, 0, 10)); // No vertical padding
 
-        // Soft alternate styling for column groups
-        // Block 0: Metric Label + Total (col 0, 1)
-        // Block 1..N: Criteria Groups (3 columns each)
+        // Segmented background for clarity with SOLID colors
         int blockIdx = (x < 2) ? 0 : ((x - 2) / 3) + 1;
         if (blockIdx % 2 == 1) {
-            lbl.setBackground(new Color(255, 255, 255, 20)); // Soft white overlay
-            lbl.setOpaque(true);
+            lbl.setBackground(new Color(45, 65, 120)); // Lighter solid nautical blue
         } else {
-            lbl.setOpaque(false);
+            lbl.setBackground(new Color(25, 35, 75));  // Darker solid nautical blue
         }
+        lbl.setOpaque(true);
         
         gbc.gridx = x;
         gbc.gridy = y;
@@ -1029,7 +1051,7 @@ public class UI extends JFrame {
     private static final boolean[] leftCols = {true, false, false, true, false, false};
 
     private void addMetricValue(String text, int x, int y, GridBagConstraints gbc, boolean left, boolean clickable, java.util.function.Consumer<Double> onUpdate, double value) {
-        JLabel lbl = new JLabel(text);
+        JLabel lbl = new JLabel("<html>" + text + "</html>");
         styleMetricLabel(lbl, x, y, gbc, left);
         
         if (clickable) {
@@ -1045,7 +1067,7 @@ public class UI extends JFrame {
                 @Override
                 public void mouseEntered(java.awt.event.MouseEvent e) {
                     lbl.setText("<html><u>" + text + "</u></html>");
-                    lbl.setForeground(new Color(187, 222, 251)); // Soft light blue on hover
+                    lbl.setForeground(Color.YELLOW); // Yellow on hover as requested
                 }
                 @Override
                 public void mouseExited(java.awt.event.MouseEvent e) {
@@ -1533,7 +1555,7 @@ public class UI extends JFrame {
             valueLabel = new JLabel("Value:");
             add(valueLabel);
             valueField = new JTextField(defaultValue, 12);
-            valueField.putClientProperty(FlatClientProperties.STYLE, "arc: 8");
+            valueField.setPreferredSize(new Dimension(150, 32));
             valueField.addActionListener(e -> { valueField.selectAll(); onEnter.run(); });
             add(valueField);
 
@@ -1541,20 +1563,19 @@ public class UI extends JFrame {
             add(typeLabel);
             typeCombo = new JComboBox<>(Criteria.MatchingType.values());
             typeCombo.setSelectedItem(Criteria.MatchingType.SIMILARITY);
-            typeCombo.putClientProperty(FlatClientProperties.STYLE, "arc: 8");
+            typeCombo.setPreferredSize(new Dimension(140, 32));
             add(typeCombo);
 
             weightLabel = new JLabel("Weight:");
             add(weightLabel);
             weightSpinner = new JSpinner(new SpinnerNumberModel(1, 0, 100, 1));
-            weightSpinner.putClientProperty(FlatClientProperties.STYLE, "arc: 8; ");
+            weightSpinner.setPreferredSize(new Dimension(70, 32));
             weightSpinner.addChangeListener(e -> onEnter.run());
             add(weightSpinner);
 
             minSpellingLabel = new JLabel("Min Spell:");
             minSpellingField = new JSpinner(new SpinnerNumberModel(0.8, 0.0, 1.0, 0.05));
-            minSpellingField.putClientProperty(FlatClientProperties.STYLE, "arc: 8; ");
-            minSpellingField.setPreferredSize(new Dimension(80, 30));
+            minSpellingField.setPreferredSize(new Dimension(80, 32));
             ((JSpinner.DefaultEditor)minSpellingField.getEditor()).getTextField().addActionListener(e -> onEnter.run());
             minSpellingField.addChangeListener(e -> onEnter.run());
             add(minSpellingLabel);
@@ -1562,8 +1583,7 @@ public class UI extends JFrame {
 
             minPhoneticLabel = new JLabel("Min Phon:");
             minPhoneticField = new JSpinner(new SpinnerNumberModel(0.8, 0.0, 1.0, 0.05));
-            minPhoneticField.putClientProperty(FlatClientProperties.STYLE, "arc: 8; ");
-            minPhoneticField.setPreferredSize(new Dimension(80, 30));
+            minPhoneticField.setPreferredSize(new Dimension(80, 32));
             ((JSpinner.DefaultEditor)minPhoneticField.getEditor()).getTextField().addActionListener(e -> onEnter.run());
             minPhoneticField.addChangeListener(e -> onEnter.run());
             add(minPhoneticLabel);
