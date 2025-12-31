@@ -1,13 +1,15 @@
 package com.makfuzz.core;
 
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import org.apache.commons.codec.language.bm.NameType;
 import org.apache.commons.codec.language.bm.PhoneticEngine;
 import org.apache.commons.codec.language.bm.RuleType;
 import org.apache.commons.text.similarity.JaroWinklerSimilarity;
+
+import com.makfuzz.core.Criteria.MatchingType;
 
 public class Fuzz {
 
@@ -55,43 +57,60 @@ public class Fuzz {
 		}
 
 		// We need to collect all that pass criteria to calculate stats accurately
-		List<LineSimResult> allPotential = candidates.parallelStream().map(t -> {
+		List<LineSimResult> allMatches = candidates.parallelStream().map(t -> {
 
 			LineSimResult lsr = new LineSimResult();
 			lsr.setCandidate(t);
 
 			lsr.initSimResults(criterias);
 
-			List<SimResult> simResults = lsr.getSimResults();
+			boolean isExactOrRegexMatchingLineFalse = false;
 
-			for (int i = 0; i < count; i++) {
-				SimResult sr = simResults.get(i);
+			for (int i = 0; i < lsr.getSimResults().length; i++) {
+				SimResult sr = lsr.getSimResults()[i];
 				Criteria c = sr.getCriteria();
-				if (c == null || c.isBlank()) continue;
+
+				boolean isExactOrRegexMatchingCriteria = c.getMatchingType() == MatchingType.EXACT
+						|| c.getMatchingType() == MatchingType.REGEX;
 
 				String critValue = c.getValue();
 				String critPhonetic = criteriaPhoneticCodes[i];
 
+				int nbExactOrRegexMatching = 0;
+
 				for (int idx : searchColumnIndexes) {
-					if (idx < 0 || idx >= t.length) continue;
-					String cellValue = (t[idx] != null) ? t[idx].trim().toUpperCase() : "";
-					if (cellValue.isEmpty()) continue;
+					String cellValue = (idx < t.length && t[idx] != null) ? t[idx].trim().toUpperCase() : "";
+					if (cellValue.isEmpty()) {
+						continue;
+					}
 
 					double spellingScore = 0.0;
 					double phoneticScore = 0.0;
 
 					if (c.getMatchingType() == Criteria.MatchingType.EXACT) {
-						spellingScore = cellValue.equals(critValue) ? 1.0 : 0.0;
-						phoneticScore = 1.0; // Phonetic irrelevant for EXACT
-					} else if (c.getMatchingType() == Criteria.MatchingType.REGEX && c.getPattern() != null) {
-						spellingScore = c.getPattern().matcher(cellValue).find() ? 1.0 : 0.0;
-						phoneticScore = 1.0; // Phonetic irrelevant for REGEX
+						boolean isMatching = cellValue.equalsIgnoreCase(critValue);
+						spellingScore = isMatching ? 1.0 : 0.0;
+						phoneticScore = 1.0;
+
+						if (isMatching) {
+							nbExactOrRegexMatching++;
+						}
+
+					} else if (c.getMatchingType() == Criteria.MatchingType.REGEX) {
+						boolean isMatching = c.getPattern().matcher(cellValue).find();
+						spellingScore = isMatching ? 1.0 : 0.0;
+						phoneticScore = 1.0;
+
+						if (isMatching) {
+							nbExactOrRegexMatching++;
+						}
 					} else {
 						// SIMILARITY
 						spellingScore = SPELLING_STRATEGY.apply(cellValue, critValue);
 
 						// Phonetic Score
-						String cellPhonetic = PHONETIC_CACHE.computeIfAbsent(cellValue, k -> isFrench ? FRENCH_ENGINE.encode(k) : DEFAULT_ENGINE.encode(k));
+						String cellPhonetic = PHONETIC_CACHE.computeIfAbsent(cellValue,
+								k -> isFrench ? FRENCH_ENGINE.encode(k) : DEFAULT_ENGINE.encode(k));
 
 						if (cellPhonetic.equals(critPhonetic)) {
 							phoneticScore = 1.0;
@@ -100,48 +119,98 @@ public class Fuzz {
 						}
 					}
 
-					double score = calculateScore(c, spellingScore, phoneticScore);
+					if (!isExactOrRegexMatchingCriteria || spellingScore > 0) {
+						double score = calculateScore(c, spellingScore, phoneticScore);
 
-					if (Double.compare(score, sr.getScore()) > 0 && spellingScore >= c.getMinSpellingScore() && phoneticScore >= c.getMinPhoneticScore()) {
-						sr.setPhoneticScore(phoneticScore);
-						sr.setSpellingScore(spellingScore);
-						sr.setScore(score);
-						sr.setColumnIndex(idx);
+						if (Double.compare(score, sr.getScore()) > 0 && spellingScore >= c.getMinSpellingScore()
+								&& phoneticScore >= c.getMinPhoneticScore()) {
+							sr.setPhoneticScore(phoneticScore);
+							sr.setSpellingScore(spellingScore);
+							sr.setScore(score);
+							sr.setColumnIndex(idx);
+							sr.setValue(cellValue);
+						}
 					}
+				}
+
+				if (lsr.getMaxSimResult() == null || lsr.getMaxSimResult().compareTo(sr) < 0) {
+					lsr.setMaxSimResult(sr);
+				}
+
+				if (isExactOrRegexMatchingCriteria && nbExactOrRegexMatching == 0) {
+					isExactOrRegexMatchingLineFalse = true;
 				}
 			}
 
-			lsr.setScore(calculateScore(lsr));
+			if (isExactOrRegexMatchingLineFalse) {
+				return null;
+			}
 
 			return lsr;
 
-		}).filter(p -> p != null && p.getScore() > 0 && p.getScore() >= threshold).sorted().limit(topN).collect(Collectors.toList());
+		}).filter(p -> p != null && p.getScore() > 0).toList();
 
-		return new SearchResult(allPotential);
+		int totalFound = (int) allMatches.stream().filter(p -> p.getScore() >= threshold).count();
+
+		List<LineSimResult> filtered = allMatches.stream().filter(p -> p.getScore() >= threshold)
+				.sorted(Comparator.reverseOrder()).limit(topN).toList();
+
+		SearchResult sr = new SearchResult(filtered, totalFound);
+
+		// Calculate metrics
+		double maxUnder = 0;
+		double minAbove = 1.0;
+		double maxAbove = 0;
+
+		for (LineSimResult lsr : allMatches) {
+			double score = lsr.getScore();
+			if (score < threshold) {
+				if (score > maxUnder) {
+					maxUnder = score;
+				}
+			} else {
+				if (score < minAbove) {
+					minAbove = score;
+				}
+				if (score > maxAbove) {
+					maxAbove = score;
+				}
+			}
+		}
+
+		sr.setMaxUnderThreshold(maxUnder);
+		sr.setMinAboveThreshold(minAbove == 1.0 && filtered.isEmpty() ? 0 : minAbove);
+		sr.setMaxAboveThreshold(maxAbove);
+
+		return sr;
 	}
 
 	private static double calculateScore(Criteria cr, double spellingScore, double phoneticScore) {
 		double totalWeight = cr.getSpellingWeight() + cr.getPhoneticWeight();
-		if (totalWeight == 0) return 0.0;
+		if (totalWeight == 0) {
+			return 0.0;
+		}
 		return (spellingScore * cr.getSpellingWeight() + phoneticScore * cr.getPhoneticWeight()) / totalWeight;
 	}
 
-	private static double calculateScore(LineSimResult lsr) {
-		if (lsr.getSimResults() == null || lsr.getSimResults().isEmpty()) {
-			return 0.0;
-		}
-
-		double totalScore = 1.0;
-		boolean hasActiveCriteria = false;
-
-		for (SimResult sr : lsr.getSimResults()) {
-			Criteria c = sr.getCriteria();
-			if (c == null || c.isBlank()) continue;
-
-			hasActiveCriteria = true;
-			totalScore *= sr.getScore();
-		}
-
-		return hasActiveCriteria ? totalScore : 0.0;
-	}
+//	private static double calculateScore(LineSimResult lsr) {
+//		if (lsr.getSimResults() == null || lsr.getSimResults().isEmpty()) {
+//			return 0.0;
+//		}
+//
+//		double totalScore = 1.0;
+//		boolean hasActiveCriteria = false;
+//
+//		for (SimResult sr : lsr.getSimResults()) {
+//			Criteria c = sr.getCriteria();
+//			if (c == null || c.isBlank()) {
+//				continue;
+//			}
+//
+//			hasActiveCriteria = true;
+//			totalScore *= sr.getScore();
+//		}
+//
+//		return hasActiveCriteria ? totalScore : 0.0;
+//	}
 }

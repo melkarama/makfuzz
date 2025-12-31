@@ -15,9 +15,16 @@ public class SimResult implements Comparable<SimResult> {
 
 	private int columnIndex;
 
+	private String value;
+
 	@Override
 	public int compareTo(SimResult o) {
 		return Double.compare(this.score, o.score);
+	}
+
+	public SimResult(Criteria criteria) {
+		super();
+		this.criteria = criteria;
 	}
 
 }

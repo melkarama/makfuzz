@@ -27,8 +27,15 @@ public class SearchResult {
 		this.totalFound = totalFound;
 	}
 
+	public SearchResult(List<LineSimResult> results, int totalFound) {
+		super();
+		this.results = results;
+		this.totalFound = totalFound;
+	}
+
 	public SearchResult(List<LineSimResult> results) {
 		super();
 		this.results = results;
+		this.totalFound = results != null ? results.size() : 0;
 	}
 }

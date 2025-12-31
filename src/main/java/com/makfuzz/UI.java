@@ -85,6 +85,11 @@ public class UI extends JFrame {
 	private JTextField topNField;
 	private JButton executeBtn;
 	private JButton addCriteriaBtn;
+	private JLabel statusLabel;
+	private JLabel totalFoundLabel;
+	private JLabel maxUnderLabel;
+	private JLabel minAboveLabel;
+	private JLabel maxAboveLabel;
 
 	// I18N Fields
 	private ResourceBundle bundle;
@@ -207,6 +212,9 @@ public class UI extends JFrame {
 		setupTopPanel(headerPanel);
 
 		add(headerPanel, BorderLayout.NORTH);
+
+		// 2.5 Footer Panel (Status Bar)
+		setupFooter();
 
 		// 3. Table Panel
 		setupCenterPanel();
@@ -351,18 +359,22 @@ public class UI extends JFrame {
 		List<String> colNames = new ArrayList<>();
 		colNames.add(bundle.getString("table.col.index"));
 		colNames.add(bundle.getString("table.col.file_index"));
-		
+
 		// Add selected columns from CSV
 		for (ConfigManager.ColumnConfig cc : availableColumns) {
 			colNames.add(cc.name);
 		}
 
 		for (int i = 0; i < criteriaLines.size(); i++) {
+			if (!criteriaLines.get(i).isActive()) {
+				continue;
+			}
 			colNames.add("Crit " + (i + 1));
 			colNames.add(bundle.getString("search.metrics.s"));
 			colNames.add(bundle.getString("search.metrics.p"));
 		}
 		colNames.add(bundle.getString("table.col.score"));
+		colNames.add("HIDDEN_DATA"); // Hidden column to store LineSimResult
 		tableModel.setColumnIdentifiers(colNames.toArray());
 		applyTableColumnStyles();
 
@@ -373,12 +385,9 @@ public class UI extends JFrame {
 			return;
 		}
 
-		List<Integer> selectedIndices = availableColumns.stream().map(cc -> cc.index).toList();
-
 		File f = new File(path);
-		// Only reload if file changed or columns changed
-		if (path.equals(lastLoadedPath) && f.lastModified() == lastLoadedTimestamp
-				&& selectedIndices.equals(lastSelectedIndices) && database != null) {
+		// Only reload if file changed. Column selection changes don't require reloading the whole CSV into 'database' field
+		if (path.equals(lastLoadedPath) && f.lastModified() == lastLoadedTimestamp && database != null) {
 			return;
 		}
 
@@ -396,9 +405,6 @@ public class UI extends JFrame {
 				return;
 			}
 
-			// Parse headers to verify indices if needed, or just skip
-			// We assume the first line is header
-
 			List<String[]> data = new ArrayList<>();
 			for (int i = 0; i < lines.size(); i++) {
 				if (i == 0) {
@@ -409,25 +415,18 @@ public class UI extends JFrame {
 					continue;
 				}
 
-				String[] parts = lineText.split("[,;]");
-				String[] selectedParts = new String[selectedIndices.size() + 1];
-				for (int j = 0; j < selectedIndices.size(); j++) {
-					int idx = selectedIndices.get(j);
-					if (idx >= 0 && idx < parts.length) {
-						selectedParts[j] = parts[idx].toUpperCase().trim();
-					} else {
-						selectedParts[j] = "";
-					}
-				}
+				// USE ROBUST PARSER
+				String[] parts = parseCSVLine(lineText);
+				String[] fullRow = new String[parts.length + 1];
+				System.arraycopy(parts, 0, fullRow, 0, parts.length);
 				// Store 1-based line index as the last element
-				selectedParts[selectedParts.length - 1] = String.valueOf(i + 1);
-				data.add(selectedParts);
+				fullRow[parts.length] = String.valueOf(i + 1);
+				data.add(fullRow);
 			}
 			database = data;
 
 			lastLoadedPath = path;
 			lastLoadedTimestamp = f.lastModified();
-			lastSelectedIndices = new ArrayList<>(selectedIndices);
 
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -729,6 +728,141 @@ public class UI extends JFrame {
 		add(centerPanel, BorderLayout.CENTER);
 	}
 
+	private void setupFooter() {
+		JPanel footer = new JPanel(new BorderLayout());
+		footer.setBackground(new Color(15, 30, 60)); // Material Dark Blue
+		footer.setPreferredSize(new Dimension(getWidth(), 40));
+		footer.setBorder(BorderFactory.createEmptyBorder(0, 15, 0, 15));
+
+		statusLabel = new JLabel(bundle.getString("status.ready"));
+		statusLabel.setForeground(Color.WHITE);
+		statusLabel.setFont(new Font("SansSerif", Font.BOLD, 12));
+		footer.add(statusLabel, BorderLayout.WEST);
+
+		// Metrics Panel
+		JPanel metricPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 20, 0));
+		metricPanel.setOpaque(false);
+		metricPanel.setBorder(BorderFactory.createEmptyBorder(8, 0, 0, 0));
+
+		totalFoundLabel = new JLabel("");
+		totalFoundLabel.setForeground(new Color(255, 200, 50)); // Amber
+		totalFoundLabel.setFont(new Font("SansSerif", Font.BOLD, 13));
+		metricPanel.add(totalFoundLabel);
+
+		maxUnderLabel = createClickableMetricLabel("search.metrics.max_under");
+		metricPanel.add(maxUnderLabel);
+
+		minAboveLabel = createClickableMetricLabel("search.metrics.min_above");
+		metricPanel.add(minAboveLabel);
+
+		maxAboveLabel = createClickableMetricLabel("search.metrics.max_above");
+		metricPanel.add(maxAboveLabel);
+
+		footer.add(metricPanel, BorderLayout.EAST);
+		add(footer, BorderLayout.SOUTH);
+	}
+
+	private JLabel createClickableMetricLabel(String bundleKey) {
+		JLabel label = new JLabel("");
+		label.setForeground(new Color(200, 200, 200));
+		label.setFont(new Font("SansSerif", Font.PLAIN, 12));
+		label.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
+
+		label.addMouseListener(new java.awt.event.MouseAdapter() {
+			@Override
+			public void mouseEntered(java.awt.event.MouseEvent e) {
+				String text = label.getText();
+				if (text.contains(":")) {
+					label.setText("<html><u>" + text + "</u></html>");
+				}
+			}
+
+			@Override
+			public void mouseExited(java.awt.event.MouseEvent e) {
+				String text = label.getText();
+				if (text.startsWith("<html>")) {
+					label.setText(text.replaceAll("<html><u>|</u></html>", ""));
+				}
+			}
+
+			@Override
+			public void mouseClicked(java.awt.event.MouseEvent e) {
+				String text = label.getText();
+				if (text.contains(":")) {
+					try {
+						String valStr = text.substring(text.lastIndexOf(":") + 1).replace("%", "").trim();
+						double val = Double.parseDouble(valStr);
+						globalThresholdField.setValue(val);
+						performSearch();
+					} catch (Exception ex) {
+					}
+				}
+			}
+		});
+		return label;
+	}
+
+	private class HighlightRenderer extends javax.swing.table.DefaultTableCellRenderer {
+		private final int sourceColIndex; // Index in availableColumns
+
+		public HighlightRenderer(int sourceColIndex) {
+			this.sourceColIndex = sourceColIndex;
+		}
+
+		@Override
+		public java.awt.Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected,
+				boolean hasFocus, int row, int column) {
+			java.awt.Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+
+			if (isSelected) {
+				return c;
+			}
+
+			c.setBackground(Color.WHITE);
+
+			try {
+				int modelRow = table.convertRowIndexToModel(row);
+				int dataCol = table.getModel().getColumnCount() - 1;
+				Object data = table.getModel().getValueAt(modelRow, dataCol);
+
+				if (data instanceof LineSimResult lsr && sourceColIndex >= 0
+						&& sourceColIndex < availableColumns.size()) {
+					int csvIdx = availableColumns.get(sourceColIndex).index;
+					SimResult[] simResults = lsr.getSimResults();
+					if (simResults != null) {
+						for (SimResult sr : simResults) {
+							if (sr != null && sr.getScore() > 0 && sr.getColumnIndex() == csvIdx) {
+								c.setBackground(new java.awt.Color(255, 249, 196)); // Soft Yellow highlight
+								break;
+							}
+						}
+					}
+				}
+			} catch (Exception e) {
+				// Fallback to white
+			}
+
+			return c;
+		}
+	}
+
+	private class PercentRenderer extends javax.swing.table.DefaultTableCellRenderer {
+		private final java.text.DecimalFormat df = new java.text.DecimalFormat("0.00%");
+
+		public PercentRenderer() {
+			setHorizontalAlignment(javax.swing.JLabel.RIGHT);
+		}
+
+		@Override
+		public java.awt.Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected,
+				boolean hasFocus, int row, int column) {
+			if (value instanceof Number) {
+				value = df.format(((Number) value).doubleValue());
+			}
+			return super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+		}
+	}
+
 	private void applyTableColumnStyles() {
 		if (resultTable == null || resultTable.getColumnCount() == 0) {
 			return;
@@ -740,48 +874,16 @@ public class UI extends JFrame {
 		javax.swing.table.DefaultTableCellRenderer rightRenderer = new javax.swing.table.DefaultTableCellRenderer();
 		rightRenderer.setHorizontalAlignment(javax.swing.JLabel.RIGHT);
 
-		// Table Index column (#)
-		resultTable.getColumnModel().getColumn(0).setPreferredWidth(40);
-		resultTable.getColumnModel().getColumn(0).setCellRenderer(centerRenderer);
+		javax.swing.table.DefaultTableCellRenderer leftRenderer = new javax.swing.table.DefaultTableCellRenderer();
+		leftRenderer.setHorizontalAlignment(javax.swing.JLabel.LEFT);
 
-		// File Row Index column
-		if (resultTable.getColumnCount() > 1) {
-			resultTable.getColumnModel().getColumn(1).setPreferredWidth(70);
-			resultTable.getColumnModel().getColumn(1).setCellRenderer(centerRenderer);
-		}
-
-		int colCount = resultTable.getColumnCount();
-		int numAvail = availableColumns.size();
-		for (int i = 2; i < colCount; i++) {
-			if (i == colCount - 1) {
-				// Score column
-				resultTable.getColumnModel().getColumn(i).setPreferredWidth(100);
-				resultTable.getColumnModel().getColumn(i).setCellRenderer(rightRenderer);
-			} else if (i < 2 + numAvail) {
-				// Available source columns
-				resultTable.getColumnModel().getColumn(i).setPreferredWidth(120);
-			} else {
-				// Criteria columns
-				int internalIdx = (i - 2 - numAvail) % 3;
-				if (internalIdx == 0) {
-					// Matched Value column
-					resultTable.getColumnModel().getColumn(i).setPreferredWidth(140);
-				} else {
-					// Score details (Spell, Phon)
-					resultTable.getColumnModel().getColumn(i).setPreferredWidth(60);
-					resultTable.getColumnModel().getColumn(i).setCellRenderer(rightRenderer);
-				}
-			}
-		}
-
-		// Header Alignment
+		// Header Renderers
 		javax.swing.table.DefaultTableCellRenderer centerHeader = new javax.swing.table.DefaultTableCellRenderer();
 		centerHeader.setHorizontalAlignment(javax.swing.JLabel.CENTER);
 		centerHeader.setBackground(new Color(232, 234, 246));
 		centerHeader.setForeground(new Color(63, 81, 181));
 		centerHeader.setFont(new Font("SansSerif", Font.BOLD, 12));
 		centerHeader.setBorder(UIManager.getBorder("TableHeader.cellBorder"));
-		resultTable.getColumnModel().getColumn(0).setHeaderRenderer(centerHeader);
 
 		javax.swing.table.DefaultTableCellRenderer rightHeader = new javax.swing.table.DefaultTableCellRenderer();
 		rightHeader.setHorizontalAlignment(javax.swing.JLabel.RIGHT);
@@ -790,13 +892,54 @@ public class UI extends JFrame {
 		rightHeader.setFont(new Font("SansSerif", Font.BOLD, 12));
 		rightHeader.setBorder(UIManager.getBorder("TableHeader.cellBorder"));
 
-		for (int i = 1; i < colCount; i++) {
-			if (i == colCount - 1) {
-				resultTable.getColumnModel().getColumn(i).setHeaderRenderer(rightHeader);
+		javax.swing.table.DefaultTableCellRenderer leftHeader = new javax.swing.table.DefaultTableCellRenderer();
+		leftHeader.setHorizontalAlignment(javax.swing.JLabel.LEFT);
+		leftHeader.setBackground(new Color(232, 234, 246));
+		leftHeader.setForeground(new Color(63, 81, 181));
+		leftHeader.setFont(new Font("SansSerif", Font.BOLD, 12));
+		leftHeader.setBorder(UIManager.getBorder("TableHeader.cellBorder"));
+
+		int colCount = resultTable.getColumnCount();
+		int numAvail = availableColumns.size();
+
+		// Hide the HIDDEN_DATA column
+		if (colCount > 0) {
+			javax.swing.table.TableColumn dataCol = resultTable.getColumnModel().getColumn(colCount - 1);
+			resultTable.getColumnModel().removeColumn(dataCol);
+			colCount--; // Adjust effective count for the loop below
+		}
+
+		for (int i = 0; i < colCount; i++) {
+			javax.swing.table.TableColumn col = resultTable.getColumnModel().getColumn(i);
+
+			if (i == 0 || i == 1) {
+				// Table Index (#) and File Row Index
+				col.setCellRenderer(centerRenderer);
+				col.setHeaderRenderer(centerHeader);
+				col.setPreferredWidth(i == 0 ? 40 : 70);
+			} else if (i == colCount - 1) {
+				// Total Score column
+				col.setCellRenderer(new PercentRenderer());
+				col.setHeaderRenderer(rightHeader);
+				col.setPreferredWidth(100);
+			} else if (i < 2 + numAvail) {
+				// Available source columns - with HighlightRenderer
+				col.setCellRenderer(new HighlightRenderer(i - 2));
+				col.setHeaderRenderer(leftHeader);
+				col.setPreferredWidth(120);
 			} else {
-				int internalIdx = (i - 1) % 3;
-				if (internalIdx != 0) {
-					resultTable.getColumnModel().getColumn(i).setHeaderRenderer(rightHeader);
+				// Criteria columns
+				int internalIdx = (i - 2 - numAvail) % 3;
+				if (internalIdx == 0) {
+					// Matched Value column
+					col.setCellRenderer(leftRenderer);
+					col.setHeaderRenderer(leftHeader);
+					col.setPreferredWidth(140);
+				} else {
+					// Score details (% cols: Spell, Phon)
+					col.setCellRenderer(new PercentRenderer());
+					col.setHeaderRenderer(rightHeader);
+					col.setPreferredWidth(80); // Slightly wider for 00.00%
 				}
 			}
 		}
@@ -837,12 +980,18 @@ public class UI extends JFrame {
 			// Switch to loading view
 			centerCardLayout.show(centerPanel, CARD_LOADING);
 
+			// Update selected indices from current available columns
+			lastSelectedIndices = availableColumns.stream().map(cc -> cc.index).toList();
+
 			// Capture parameters for thread
 			List<String[]> currentDb = database;
 			List<Criteria> criteriaList = new ArrayList<>();
 			for (CriteriaLine cl : criteriaLines) {
-				criteriaList.add(cl.getCriteria());
+				if (cl.getCriteria() != null) {
+					criteriaList.add(cl.getCriteria());
+				}
 			}
+
 			double globalThreshold = (Double) globalThresholdField.getValue();
 			int topN = Integer.parseInt(topNField.getText());
 			String lang = currentLocale.getLanguage();
@@ -899,17 +1048,37 @@ public class UI extends JFrame {
 			int numCriteria = criteriaList.size();
 			int numAvail = availableColumns.size();
 
-			// Expected columns: TableIndex + FileIndex + numAvail + (3 * numCriteria) + Score
-			int expectedCols = 3 + numAvail + 3 * numCriteria;
+			// Expected columns: TableIndex + FileIndex + numAvail + (3 * numCriteria) + Score + HIDDEN_DATA
+			int expectedCols = 4 + numAvail + 3 * numCriteria;
 			if (tableModel.getColumnCount() != expectedCols) {
 				updateTexts();
 			}
 
 			tableModel.setRowCount(0);
+
+			// Update Status Bar
+			if (statusLabel != null) {
+				statusLabel.setText(bundle.getString("status.ready"));
+			}
+			if (totalFoundLabel != null) {
+				totalFoundLabel.setText(MessageFormat.format(bundle.getString("status.total"), searchResult.getTotalFound()));
+			}
+
+			java.text.DecimalFormat df = new java.text.DecimalFormat("0.00%");
+			if (maxUnderLabel != null) {
+				maxUnderLabel.setText(bundle.getString("search.metrics.max_under") + " " + df.format(searchResult.getMaxUnderThreshold()));
+			}
+			if (minAboveLabel != null) {
+				minAboveLabel.setText(bundle.getString("search.metrics.min_above") + " " + df.format(searchResult.getMinAboveThreshold()));
+			}
+			if (maxAboveLabel != null) {
+				maxAboveLabel.setText(bundle.getString("search.metrics.max_above") + " " + df.format(searchResult.getMaxAboveThreshold()));
+			}
+
 			int tableRowIndex = 1;
 			for (LineSimResult res : results) {
 				String[] cand = res.getCandidate();
-				
+
 				Object[] rowValues = new Object[tableModel.getColumnCount()];
 				// Column 0: Table Relative Index
 				rowValues[0] = tableRowIndex++;
@@ -924,14 +1093,16 @@ public class UI extends JFrame {
 					rowValues[currentCell++] = (cand != null && idx >= 0 && idx < cand.length) ? cand[idx] : "";
 				}
 
-				List<SimResult> simResults = res.getSimResults();
+				SimResult[] simResults = res.getSimResults();
 
 				for (int i = 0; i < numCriteria; i++) {
-					SimResult sr = (simResults != null && i < simResults.size()) ? simResults.get(i) : null;
+					SimResult sr = simResults[i];
 
 					if (sr != null && sr.getScore() > 0) {
 						int actualColIdx = sr.getColumnIndex();
-						rowValues[currentCell++] = (actualColIdx >= 0 && actualColIdx < cand.length) ? cand[actualColIdx] : "";
+						rowValues[currentCell++] = (actualColIdx >= 0 && actualColIdx < cand.length)
+								? cand[actualColIdx]
+								: "";
 						rowValues[currentCell++] = sr.getSpellingScore();
 						rowValues[currentCell++] = sr.getPhoneticScore();
 					} else {
@@ -940,10 +1111,13 @@ public class UI extends JFrame {
 						rowValues[currentCell++] = 0.0;
 					}
 				}
-				// Score column is always the last one
-				if (currentCell < rowValues.length) {
-					rowValues[currentCell] = res.getScore();
+				// Score column is second to last
+				if (currentCell < rowValues.length - 1) {
+					rowValues[currentCell++] = res.getScore();
 				}
+				// Hidden data column is last
+				rowValues[rowValues.length - 1] = res;
+
 				tableModel.addRow(rowValues);
 			}
 
@@ -1503,8 +1677,13 @@ public class UI extends JFrame {
 				minSpellingField.setVisible(isSimilarity);
 				minPhoneticLabel.setVisible(isSimilarity);
 				minPhoneticField.setVisible(isSimilarity);
+				spellingWeightLabel.setVisible(isSimilarity);
+				spellingWeightSpinner.setVisible(isSimilarity);
+				phoneticWeightLabel.setVisible(isSimilarity);
+				phoneticWeightSpinner.setVisible(isSimilarity);
 				revalidate();
 				repaint();
+				onEnter.run();
 			});
 
 			// Trigger initial visibility
@@ -1521,6 +1700,10 @@ public class UI extends JFrame {
 
 		public void updateIndex(int index) {
 			criteriaIndexLabel.setText("Crit " + (index + 1));
+		}
+
+		public boolean isActive() {
+			return valueField != null && !valueField.getText().trim().isEmpty();
 		}
 
 		public Criteria getCriteria() {
@@ -1565,10 +1748,10 @@ public class UI extends JFrame {
 			} catch (Exception e) {
 				typeCombo.setSelectedItem(Criteria.MatchingType.SIMILARITY);
 			}
-				spellingWeightSpinner.setValue(cc.spellingWeight);
-				phoneticWeightSpinner.setValue(cc.phoneticWeight);
-				minSpellingField.setValue(cc.minSpelling);
-				minPhoneticField.setValue(cc.minPhonetic);
+			spellingWeightSpinner.setValue(cc.spellingWeight);
+			phoneticWeightSpinner.setValue(cc.phoneticWeight);
+			minSpellingField.setValue(cc.minSpelling);
+			minPhoneticField.setValue(cc.minPhonetic);
 		}
 
 		public void updateTexts(ResourceBundle bundle) {
@@ -1600,7 +1783,7 @@ public class UI extends JFrame {
 		}
 
 	}
-	
+
 	private void setupDotDecimalSpinner(JSpinner spinner, String pattern) {
 		JSpinner.NumberEditor editor = new JSpinner.NumberEditor(spinner, pattern);
 		java.text.DecimalFormat format = editor.getFormat();

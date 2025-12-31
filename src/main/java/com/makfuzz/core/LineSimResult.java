@@ -9,22 +9,25 @@ public class LineSimResult implements Comparable<LineSimResult> {
 
 	private String[] candidate;
 
-	private List<SimResult> simResults;
+	private SimResult[] simResults;
 
-	private double score;
+	private SimResult maxSimResult;
 
 	public void initSimResults(List<Criteria> critierias) {
-		simResults = critierias.stream().map(c -> {
-			SimResult sr = new SimResult();
-			sr.setCriteria(c);
-			return sr;
-		}).toList();
+		simResults = new SimResult[critierias.size()];
+
+		for (int i = 0; i < critierias.size(); i++) {
+			Criteria c = critierias.get(i);
+			simResults[i] = new SimResult(c);
+		}
 	}
 
 	@Override
 	public int compareTo(LineSimResult o) {
-		// Descending: highest score first
-		return Double.compare(o.score, this.score);
+		return maxSimResult.compareTo(o.maxSimResult);
 	}
 
+	public double getScore() {
+		return maxSimResult.getScore();
+	}
 }

@@ -35,7 +35,7 @@ public class Criteria {
 		// Compile regex pattern if matchingType is REGEX
 		if (matchingType == MatchingType.REGEX && this.value != null) {
 			try {
-				this.pattern = Pattern.compile(this.value);
+				this.pattern = Pattern.compile(this.value, Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
 			} catch (Exception ex) {
 				throw new IllegalStateException(ex);
 			}
