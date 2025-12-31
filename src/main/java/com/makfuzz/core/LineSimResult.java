@@ -24,10 +24,16 @@ public class LineSimResult implements Comparable<LineSimResult> {
 
 	@Override
 	public int compareTo(LineSimResult o) {
-		return maxSimResult.compareTo(o.maxSimResult);
+		return Double.compare(getScore(), o.getScore());
 	}
 
 	public double getScore() {
-		return maxSimResult.getScore();
+		double d = 1;
+
+		for (SimResult sr : simResults) {
+			d *= sr.getScore();
+		}
+
+		return d;
 	}
 }

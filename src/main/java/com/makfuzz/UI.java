@@ -365,6 +365,8 @@ public class UI extends JFrame {
 			colNames.add(cc.name);
 		}
 
+		colNames.add(bundle.getString("table.col.score"));
+
 		for (int i = 0; i < criteriaLines.size(); i++) {
 			if (!criteriaLines.get(i).isActive()) {
 				continue;
@@ -373,7 +375,6 @@ public class UI extends JFrame {
 			colNames.add(bundle.getString("search.metrics.s"));
 			colNames.add(bundle.getString("search.metrics.p"));
 		}
-		colNames.add(bundle.getString("table.col.score"));
 		colNames.add("HIDDEN_DATA"); // Hidden column to store LineSimResult
 		tableModel.setColumnIdentifiers(colNames.toArray());
 		applyTableColumnStyles();
@@ -848,18 +849,37 @@ public class UI extends JFrame {
 
 	private class PercentRenderer extends javax.swing.table.DefaultTableCellRenderer {
 		private final java.text.DecimalFormat df = new java.text.DecimalFormat("0.00%");
+		private Color backgroundColor = null;
 
 		public PercentRenderer() {
 			setHorizontalAlignment(javax.swing.JLabel.RIGHT);
+			this.backgroundColor = Color.WHITE;
+		}
+
+		public PercentRenderer(Color bgColor) {
+			this();
+			this.backgroundColor = bgColor;
 		}
 
 		@Override
 		public java.awt.Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected,
 				boolean hasFocus, int row, int column) {
+			java.awt.Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
 			if (value instanceof Number) {
-				value = df.format(((Number) value).doubleValue());
+				double d = ((Number) value).doubleValue();
+				if (d == 0.0) {
+					setText("-");
+				} else {
+					setText(df.format(d));
+				}
 			}
-			return super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+
+			if (!isSelected && backgroundColor != null) {
+				c.setBackground(backgroundColor);
+			} else if (!isSelected) {
+				c.setBackground(table.getBackground());
+			}
+			return c;
 		}
 	}
 
@@ -870,12 +890,15 @@ public class UI extends JFrame {
 
 		javax.swing.table.DefaultTableCellRenderer centerRenderer = new javax.swing.table.DefaultTableCellRenderer();
 		centerRenderer.setHorizontalAlignment(javax.swing.JLabel.CENTER);
+		centerRenderer.setBackground(Color.WHITE);
 
 		javax.swing.table.DefaultTableCellRenderer rightRenderer = new javax.swing.table.DefaultTableCellRenderer();
 		rightRenderer.setHorizontalAlignment(javax.swing.JLabel.RIGHT);
+		rightRenderer.setBackground(Color.WHITE);
 
 		javax.swing.table.DefaultTableCellRenderer leftRenderer = new javax.swing.table.DefaultTableCellRenderer();
 		leftRenderer.setHorizontalAlignment(javax.swing.JLabel.LEFT);
+		leftRenderer.setBackground(Color.WHITE);
 
 		// Header Renderers
 		javax.swing.table.DefaultTableCellRenderer centerHeader = new javax.swing.table.DefaultTableCellRenderer();
@@ -917,19 +940,19 @@ public class UI extends JFrame {
 				col.setCellRenderer(centerRenderer);
 				col.setHeaderRenderer(centerHeader);
 				col.setPreferredWidth(i == 0 ? 40 : 70);
-			} else if (i == colCount - 1) {
-				// Total Score column
-				col.setCellRenderer(new PercentRenderer());
-				col.setHeaderRenderer(rightHeader);
-				col.setPreferredWidth(100);
 			} else if (i < 2 + numAvail) {
 				// Available source columns - with HighlightRenderer
 				col.setCellRenderer(new HighlightRenderer(i - 2));
 				col.setHeaderRenderer(leftHeader);
 				col.setPreferredWidth(120);
+			} else if (i == 2 + numAvail) {
+				// Total Score column - distinguishing background
+				col.setCellRenderer(new PercentRenderer(new Color(232, 234, 246)));
+				col.setHeaderRenderer(rightHeader);
+				col.setPreferredWidth(100);
 			} else {
 				// Criteria columns
-				int internalIdx = (i - 2 - numAvail) % 3;
+				int internalIdx = (i - 2 - numAvail - 1) % 3;
 				if (internalIdx == 0) {
 					// Matched Value column
 					col.setCellRenderer(leftRenderer);
@@ -1093,16 +1116,17 @@ public class UI extends JFrame {
 					rowValues[currentCell++] = (cand != null && idx >= 0 && idx < cand.length) ? cand[idx] : "";
 				}
 
+				// Add Total Score before criteria
+				rowValues[currentCell++] = res.getScore();
+
 				SimResult[] simResults = res.getSimResults();
 
 				for (int i = 0; i < numCriteria; i++) {
 					SimResult sr = simResults[i];
 
-					if (sr != null && sr.getScore() > 0) {
-						int actualColIdx = sr.getColumnIndex();
-						rowValues[currentCell++] = (actualColIdx >= 0 && actualColIdx < cand.length)
-								? cand[actualColIdx]
-								: "";
+					if (sr != null && (sr.getScore() > 0 || sr.getValue() != null)) {
+						String val = (sr.getValue() != null) ? sr.getValue().trim() : "";
+						rowValues[currentCell++] = val.isEmpty() ? "-" : val;
 						rowValues[currentCell++] = sr.getSpellingScore();
 						rowValues[currentCell++] = sr.getPhoneticScore();
 					} else {
@@ -1110,10 +1134,6 @@ public class UI extends JFrame {
 						rowValues[currentCell++] = 0.0;
 						rowValues[currentCell++] = 0.0;
 					}
-				}
-				// Score column is second to last
-				if (currentCell < rowValues.length - 1) {
-					rowValues[currentCell++] = res.getScore();
 				}
 				// Hidden data column is last
 				rowValues[rowValues.length - 1] = res;

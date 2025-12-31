@@ -13,7 +13,7 @@ public class SimResult implements Comparable<SimResult> {
 
 	private double phoneticScore;
 
-	private int columnIndex;
+	private int columnIndex = -1;
 
 	private String value;
 
