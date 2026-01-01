@@ -95,6 +95,32 @@ Built with robust, industry-standard libraries:
 
 ---
 
+## 📚 Documentation
+
+Comprehensive functional specifications are available for end users and stakeholders:
+
+### **Download Functional Specifications**
+
+- 📄 **[English Version (Word Document)](MakFuzz_Functional_Specifications_EN.docx)** - Complete technical and user documentation in English
+- 📄 **[Version Française (Document Word)](MakFuzz_Functional_Specifications_FR.docx)** - Documentation technique et utilisateur complète en français
+
+### **What's Inside:**
+- ✅ Executive Summary & Application Overview
+- ✅ Complete Feature Documentation
+- ✅ Core Functionality (Data Source, Criteria, Search Configuration)
+- ✅ Detailed Algorithm Explanations (Jaro-Winkler, Beider-Morse, French Soundex)
+- ✅ Configuration & Persistence Guide
+- ✅ Performance Recommendations
+- ✅ Comprehensive Glossary
+
+These professionally formatted Word documents are perfect for:
+- 👥 Sharing with end users and stakeholders
+- 📊 Business requirement documentation
+- 🎓 Onboarding and training materials
+- 📋 Technical reference guides
+
+---
+
 ## 🌈 The "Happy Mode" Promise
 
 MakFuzz isn't just a tool; it's a productivity booster designed to make data cleansing satisfying. With its clean layout, responsive sorting, and detailed feedback loops, you'll actually *enjoy* fixing your data.
