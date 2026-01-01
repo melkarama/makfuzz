@@ -3,6 +3,8 @@ package com.makfuzz.api.service;
 import com.makfuzz.api.core.*;
 import com.makfuzz.api.dto.*;
 import org.apache.commons.io.FilenameUtils;
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -55,12 +57,18 @@ public class FuzzService {
     }
 
     public SearchResponseDTO search(String fileId, SearchRequestDTO request) {
+        long startTime = System.currentTimeMillis();
+        SearchResult result = performSearch(fileId, request);
+        SearchResponseDTO response = convertToResponseDTO(result, request.getTopN());
+        response.setSearchTimeMs(System.currentTimeMillis() - startTime);
+        return response;
+    }
+
+    private SearchResult performSearch(String fileId, SearchRequestDTO request) {
         FileData fileData = fileCache.get(fileId);
         if (fileData == null) {
             throw new IllegalArgumentException("File not found. Please upload a file first.");
         }
-
-        long startTime = System.currentTimeMillis();
 
         // Convert DTOs to core objects
         List<Criteria> criterias = request.getCriterias().stream()
@@ -74,7 +82,7 @@ public class FuzzService {
                 ))
                 .toList();
 
-        SearchResult result = fuzzEngine.bestMatch(
+        return fuzzEngine.bestMatch(
                 fileData.getData(),
                 criterias,
                 request.getSearchColumnIndexes(),
@@ -82,9 +90,10 @@ public class FuzzService {
                 request.getTopN(),
                 request.getLanguage()
         );
+    }
 
-        long searchTime = System.currentTimeMillis() - startTime;
-
+    private SearchResponseDTO convertToResponseDTO(SearchResult result, int topN) {
+        long startTime = System.currentTimeMillis();
         // Convert to response DTO
         SearchResponseDTO response = new SearchResponseDTO();
         response.setTotalFound(result.getTotalFound());
@@ -92,32 +101,37 @@ public class FuzzService {
         response.setMaxUnderThreshold(result.getMaxUnderThreshold());
         response.setMinAboveThreshold(result.getMinAboveThreshold());
         response.setMaxAboveThreshold(result.getMaxAboveThreshold());
-        response.setSearchTimeMs(searchTime);
+        response.setSearchTimeMs(0); // This will be set by the caller if needed
 
         List<MatchResultDTO> matchResults = new ArrayList<>();
-        if (result.getResults() != null) {
-            for (LineSimResult lsr : result.getResults()) {
-                MatchResultDTO matchResult = new MatchResultDTO();
-                matchResult.setTotalScore(lsr.getScore());
-                matchResult.setCandidateValues(Arrays.asList(lsr.getCandidate()));
+        List<LineSimResult> matchesToExport = result.getResults(); // This is already limited by topN in fuzzEngine
 
-                List<CriteriaMatchDTO> criteriaMatches = new ArrayList<>();
-                for (SimResult sr : lsr.getSimResults()) {
-                    CriteriaMatchDTO cm = new CriteriaMatchDTO();
-                    cm.setMatchedValue(sr.getValue());
-                    cm.setSpellingScore(sr.getSpellingScore());
-                    cm.setPhoneticScore(sr.getPhoneticScore());
-                    cm.setScore(sr.getScore());
-                    cm.setColumnIndex(sr.getColumnIndex());
-                    criteriaMatches.add(cm);
-                }
-                matchResult.setCriteriaMatches(criteriaMatches);
-                matchResults.add(matchResult);
+        if (matchesToExport != null) {
+            for (LineSimResult lsr : matchesToExport) {
+                matchResults.add(convertToMatchResultDTO(lsr));
             }
         }
         response.setResults(matchResults);
-
         return response;
+    }
+
+    private MatchResultDTO convertToMatchResultDTO(LineSimResult lsr) {
+        MatchResultDTO matchResult = new MatchResultDTO();
+        matchResult.setTotalScore(lsr.getScore());
+        matchResult.setCandidateValues(Arrays.asList(lsr.getCandidate()));
+
+        List<CriteriaMatchDTO> criteriaMatches = new ArrayList<>();
+        for (SimResult sr : lsr.getSimResults()) {
+            CriteriaMatchDTO cm = new CriteriaMatchDTO();
+            cm.setMatchedValue(sr.getValue() != null ? sr.getValue() : "");
+            cm.setSpellingScore(sr.getSpellingScore());
+            cm.setPhoneticScore(sr.getPhoneticScore());
+            cm.setScore(sr.getScore());
+            cm.setColumnIndex(sr.getColumnIndex());
+            criteriaMatches.add(cm);
+        }
+        matchResult.setCriteriaMatches(criteriaMatches);
+        return matchResult;
     }
 
     public FileInfoDTO getFileInfo(String fileId) {
@@ -141,7 +155,7 @@ public class FuzzService {
     }
 
     public byte[] exportToCSV(String fileId, SearchRequestDTO request) throws IOException {
-        SearchResponseDTO searchResponse = search(fileId, request);
+        SearchResult searchResult = performSearch(fileId, request);
         FileData fileData = fileCache.get(fileId);
 
         StringBuilder sb = new StringBuilder();
@@ -158,11 +172,12 @@ public class FuzzService {
         }
         sb.append("\n");
 
-        // Data rows
-        for (MatchResultDTO match : searchResponse.getResults()) {
+        // Data rows (using ALL found results)
+        for (LineSimResult lsr : searchResult.getAllFoundResults()) {
+            MatchResultDTO match = convertToMatchResultDTO(lsr);
             sb.append(String.format("%.4f", match.getTotalScore()));
             for (CriteriaMatchDTO cm : match.getCriteriaMatches()) {
-                sb.append(",").append(escapeCSV(cm.getMatchedValue() != null ? cm.getMatchedValue() : ""));
+                sb.append(",").append(escapeCSV(cm.getMatchedValue()));
                 sb.append(",").append(String.format("%.2f%%", cm.getSpellingScore() * 100));
                 sb.append(",").append(String.format("%.2f%%", cm.getPhoneticScore() * 100));
             }
@@ -173,6 +188,69 @@ public class FuzzService {
         }
 
         return sb.toString().getBytes(StandardCharsets.UTF_8);
+    }
+
+    public byte[] exportToExcel(String fileId, SearchRequestDTO request) throws IOException {
+        SearchResult searchResult = performSearch(fileId, request);
+        FileData fileData = fileCache.get(fileId);
+
+        try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            Sheet sheet = workbook.createSheet("Match Results");
+
+            // Header Style
+            CellStyle headerStyle = workbook.createCellStyle();
+            headerStyle.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.getIndex());
+            headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            Font headerFont = workbook.createFont();
+            headerFont.setBold(true);
+            headerStyle.setFont(headerFont);
+
+            // Create Header Row
+            Row headerRow = sheet.createRow(0);
+            int colIdx = 0;
+            headerRow.createCell(colIdx++).setCellValue("Score");
+            for (int i = 0; i < request.getCriterias().size(); i++) {
+                headerRow.createCell(colIdx++).setCellValue("Criteria " + (i + 1) + " Match");
+                headerRow.createCell(colIdx++).setCellValue("Spelling %");
+                headerRow.createCell(colIdx++).setCellValue("Phonetic %");
+            }
+            for (String header : fileData.getHeaders()) {
+                headerRow.createCell(colIdx++).setCellValue(header);
+            }
+
+            // Apply style to header
+            for (int i = 0; i < colIdx; i++) {
+                headerRow.getCell(i).setCellStyle(headerStyle);
+            }
+
+            // Data Rows (using ALL found results)
+            int rowIdx = 1;
+            for (LineSimResult lsr : searchResult.getAllFoundResults()) {
+                MatchResultDTO match = convertToMatchResultDTO(lsr);
+                Row row = sheet.createRow(rowIdx++);
+                int cIdx = 0;
+                row.createCell(cIdx++).setCellValue(match.getTotalScore());
+                for (CriteriaMatchDTO cm : match.getCriteriaMatches()) {
+                    row.createCell(cIdx++).setCellValue(cm.getMatchedValue() != null ? cm.getMatchedValue() : "");
+                    row.createCell(cIdx++).setCellValue(cm.getSpellingScore());
+                    row.createCell(cIdx++).setCellValue(cm.getPhoneticScore());
+                }
+                for (String val : match.getCandidateValues()) {
+                    row.createCell(cIdx++).setCellValue(val != null ? val : "");
+                }
+                
+                // Safety break for Excel row limit
+                if (rowIdx >= 1048575) break;
+            }
+
+            // Auto-size columns (up to first 50 columns for performance)
+            for (int i = 0; i < Math.min(colIdx, 50); i++) {
+                sheet.autoSizeColumn(i);
+            }
+
+            workbook.write(out);
+            return out.toByteArray();
+        }
     }
 
     private String escapeCSV(String value) {

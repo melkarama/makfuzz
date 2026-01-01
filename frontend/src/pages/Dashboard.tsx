@@ -2,7 +2,6 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
     FileSearch,
-    Zap,
     TrendingUp,
     Clock,
     FileText,
@@ -178,83 +177,7 @@ export default function Dashboard({ fileInfo, searchResults, onFileUploaded }: D
                 </div>
             </motion.div>
 
-            {/* Features Grid */}
-            <motion.div variants={itemVariants} className="mt-lg">
-                <h3 className="mb-md">Powered By</h3>
-                <div className="grid-3">
-                    <motion.div
-                        className="card card-glow"
-                        whileHover={{ y: -4 }}
-                        style={{ padding: 'var(--space-lg)' }}
-                    >
-                        <div style={{
-                            width: 48,
-                            height: 48,
-                            borderRadius: 'var(--radius-md)',
-                            background: 'rgba(138, 100, 255, 0.15)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            marginBottom: 'var(--space-md)',
-                            color: 'var(--primary-400)'
-                        }}>
-                            <Zap size={24} />
-                        </div>
-                        <h4 className="mb-sm">Jaro-Winkler</h4>
-                        <p style={{ fontSize: '0.9rem' }}>
-                            Advanced string similarity algorithm optimized for name matching and typo detection.
-                        </p>
-                    </motion.div>
 
-                    <motion.div
-                        className="card card-glow"
-                        whileHover={{ y: -4 }}
-                        style={{ padding: 'var(--space-lg)' }}
-                    >
-                        <div style={{
-                            width: 48,
-                            height: 48,
-                            borderRadius: 'var(--radius-md)',
-                            background: 'rgba(255, 100, 150, 0.15)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            marginBottom: 'var(--space-md)',
-                            color: 'var(--accent-400)'
-                        }}>
-                            <Sparkles size={24} />
-                        </div>
-                        <h4 className="mb-sm">Beider-Morse</h4>
-                        <p style={{ fontSize: '0.9rem' }}>
-                            Phonetic encoding that recognizes how names sound across different languages.
-                        </p>
-                    </motion.div>
-
-                    <motion.div
-                        className="card card-glow"
-                        whileHover={{ y: -4 }}
-                        style={{ padding: 'var(--space-lg)' }}
-                    >
-                        <div style={{
-                            width: 48,
-                            height: 48,
-                            borderRadius: 'var(--radius-md)',
-                            background: 'rgba(52, 211, 153, 0.15)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            marginBottom: 'var(--space-md)',
-                            color: 'var(--success-500)'
-                        }}>
-                            <TrendingUp size={24} />
-                        </div>
-                        <h4 className="mb-sm">French Soundex</h4>
-                        <p style={{ fontSize: '0.9rem' }}>
-                            Specialized phonetic algorithm for French names with silent letter handling.
-                        </p>
-                    </motion.div>
-                </div>
-            </motion.div>
         </motion.div>
     );
 }

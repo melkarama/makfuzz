@@ -39,7 +39,20 @@ export const api = {
             criterias: searchState.criterias.filter(c => c.value.trim() !== ''),
             searchColumnIndexes: searchState.searchColumnIndexes,
             threshold: searchState.threshold,
-            topN: 10000,
+            topN: searchState.topN, // Use the current topN setting
+            language: searchState.language
+        }, {
+            responseType: 'blob'
+        });
+        return response.data;
+    },
+
+    exportExcel: async (fileId: string, searchState: SearchState): Promise<Blob> => {
+        const response = await axios.post(`${API_BASE}/export/${fileId}/excel`, {
+            criterias: searchState.criterias.filter(c => c.value.trim() !== ''),
+            searchColumnIndexes: searchState.searchColumnIndexes,
+            threshold: searchState.threshold,
+            topN: searchState.topN,
             language: searchState.language
         }, {
             responseType: 'blob'

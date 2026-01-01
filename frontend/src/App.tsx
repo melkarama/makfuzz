@@ -7,6 +7,7 @@ import Dashboard from './pages/Dashboard';
 import Search from './pages/Search';
 import Results from './pages/Results';
 import Settings from './pages/Settings';
+import { api } from './api';
 import { FileInfo, SearchState } from './types';
 
 function App() {
@@ -15,11 +16,30 @@ function App() {
     const [searchState, setSearchState] = useState<SearchState>({
         criterias: [{ value: '', spellingWeight: 1, phoneticWeight: 1, minSpellingScore: 0, minPhoneticScore: 0, matchingType: 'SIMILARITY' }],
         searchColumnIndexes: [],
-        threshold: 0.5,
-        topN: 100,
+        threshold: 0.75,
+        topN: 100000,
         language: 'en'
     });
     const [searchResults, setSearchResults] = useState<any>(null);
+    const [isSearching, setIsSearching] = useState(false);
+
+    const handleSearch = useCallback(async (currentState?: SearchState) => {
+        if (!fileInfo) return;
+
+        const stateToUse = currentState || searchState;
+        const validCriterias = stateToUse.criterias.filter(c => c.value.trim() !== '');
+        if (validCriterias.length === 0 || stateToUse.searchColumnIndexes.length === 0) return;
+
+        setIsSearching(true);
+        try {
+            const results = await api.search(fileInfo.fileId, stateToUse);
+            setSearchResults(results);
+        } catch (err) {
+            console.error('Search failed:', err);
+        } finally {
+            setIsSearching(false);
+        }
+    }, [fileInfo, searchState]);
 
     const handleFileUploaded = useCallback((info: FileInfo) => {
         setFileInfo(info);
@@ -67,6 +87,8 @@ function App() {
                                             setSearchState={setSearchState}
                                             onSearchComplete={handleSearchComplete}
                                             onFileUploaded={handleFileUploaded}
+                                            isSearchingIn={isSearching}
+                                            onSearchStart={handleSearch}
                                         />
                                     }
                                 />
@@ -77,6 +99,9 @@ function App() {
                                             fileInfo={fileInfo}
                                             searchResults={searchResults}
                                             searchState={searchState}
+                                            setSearchState={setSearchState}
+                                            onRefresh={handleSearch}
+                                            isSearching={isSearching}
                                         />
                                     }
                                 />

@@ -21,6 +21,8 @@ interface SearchProps {
     setSearchState: React.Dispatch<React.SetStateAction<SearchState>>;
     onSearchComplete: (results: SearchResponse) => void;
     onFileUploaded: (info: FileInfo) => void;
+    isSearchingIn: boolean;
+    onSearchStart: (state?: SearchState) => void;
 }
 
 const containerVariants = {
@@ -41,10 +43,11 @@ export default function Search({
     searchState,
     setSearchState,
     onSearchComplete,
-    onFileUploaded
+    onFileUploaded,
+    isSearchingIn,
+    onSearchStart
 }: SearchProps) {
     const navigate = useNavigate();
-    const [isSearching, setIsSearching] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     const addCriteria = useCallback(() => {
@@ -69,10 +72,26 @@ export default function Search({
     }, [setSearchState]);
 
     const removeCriteria = useCallback((index: number) => {
-        setSearchState(prev => ({
-            ...prev,
-            criterias: prev.criterias.filter((_, i) => i !== index)
-        }));
+        setSearchState(prev => {
+            const newCriterias = prev.criterias.filter((_, i) => i !== index);
+            if (newCriterias.length === 0) {
+                return {
+                    ...prev,
+                    criterias: [{
+                        value: '',
+                        spellingWeight: 1,
+                        phoneticWeight: 1,
+                        minSpellingScore: 0,
+                        minPhoneticScore: 0,
+                        matchingType: 'SIMILARITY'
+                    }]
+                };
+            }
+            return {
+                ...prev,
+                criterias: newCriterias
+            };
+        });
     }, [setSearchState]);
 
     const toggleColumn = useCallback((index: number) => {
@@ -101,19 +120,10 @@ export default function Search({
             return;
         }
 
-        setIsSearching(true);
         setError(null);
-
-        try {
-            const results = await api.search(fileInfo.fileId, searchState);
-            onSearchComplete(results);
-            navigate('/results');
-        } catch (err: any) {
-            setError(err.response?.data?.message || 'Search failed. Please try again.');
-        } finally {
-            setIsSearching(false);
-        }
-    }, [fileInfo, searchState, onSearchComplete, navigate]);
+        onSearchStart();
+        navigate('/results');
+    }, [fileInfo, searchState, onSearchStart, navigate]);
 
     if (!fileInfo) {
         return (
@@ -218,36 +228,26 @@ export default function Search({
                 <div className="card-body">
                     <div className="grid-4">
                         <div className="input-group">
-                            <label className="input-label">Minimum Score Threshold</label>
-                            <div className="slider-container">
+                            <label className="input-label">Minimum Score Threshold (%)</label>
+                            <div className="flex items-center gap-sm">
                                 <input
-                                    type="range"
-                                    className="slider"
+                                    type="number"
+                                    className="input"
                                     min="0"
                                     max="100"
-                                    value={searchState.threshold * 100}
-                                    onChange={(e) => setSearchState(prev => ({
-                                        ...prev,
-                                        threshold: parseInt(e.target.value) / 100
-                                    }))}
+                                    step="5"
+                                    value={Math.round(searchState.threshold * 100)}
+                                    onChange={(e) => {
+                                        const val = parseInt(e.target.value);
+                                        if (isNaN(val)) return;
+                                        setSearchState(prev => ({
+                                            ...prev,
+                                            threshold: Math.max(0, Math.min(100, val)) / 100
+                                        }));
+                                    }}
                                 />
-                                <div className="slider-value">{Math.round(searchState.threshold * 100)}%</div>
+                                <span className="font-bold">%</span>
                             </div>
-                        </div>
-
-                        <div className="input-group">
-                            <label className="input-label">Max Results</label>
-                            <input
-                                type="number"
-                                className="input"
-                                min="1"
-                                max="10000"
-                                value={searchState.topN}
-                                onChange={(e) => setSearchState(prev => ({
-                                    ...prev,
-                                    topN: parseInt(e.target.value) || 100
-                                }))}
-                            />
                         </div>
 
                         <div className="input-group">
@@ -292,24 +292,27 @@ export default function Search({
             {/* Search Button */}
             <motion.div variants={itemVariants}>
                 <motion.button
-                    className="btn btn-primary btn-lg w-full"
+                    className={`btn btn-primary btn-lg w-full overflow-hidden ${isSearchingIn ? 'searching-pulse' : ''}`}
                     onClick={handleSearch}
-                    disabled={isSearching}
+                    disabled={isSearchingIn}
                     whileHover={{ scale: 1.01 }}
                     whileTap={{ scale: 0.99 }}
                     style={{ position: 'relative' }}
                 >
-                    {isSearching ? (
-                        <>
-                            <div className="loading-spinner" style={{ width: 20, height: 20 }} />
-                            Searching...
-                        </>
-                    ) : (
-                        <>
-                            <Play size={20} />
-                            Run Fuzzy Search
-                        </>
-                    )}
+                    {isSearchingIn && <div className="loading-progress-bar" style={{ height: '100%', opacity: 0.2 }} />}
+                    <div className="flex items-center justify-center gap-md relative z-10">
+                        {isSearchingIn ? (
+                            <>
+                                <div className="loading-spinner" style={{ width: 20, height: 20, borderWidth: 2 }} />
+                                Processing matches...
+                            </>
+                        ) : (
+                            <>
+                                <Play size={20} />
+                                Run Fuzzy Search
+                            </>
+                        )}
+                    </div>
                 </motion.button>
             </motion.div>
         </motion.div>

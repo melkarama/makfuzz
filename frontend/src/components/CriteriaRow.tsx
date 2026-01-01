@@ -106,17 +106,20 @@ export default function CriteriaRow({ criteria, index, onChange, onRemove, canRe
             </div>
 
             {/* Remove Button */}
-            <div style={{ paddingTop: '24px' }}>
-                <motion.button
-                    className="btn btn-ghost btn-icon btn-sm"
-                    onClick={() => onRemove(index)}
-                    disabled={!canRemove}
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                    style={{ color: canRemove ? 'var(--danger-500)' : 'var(--text-muted)' }}
-                >
-                    <X size={18} />
-                </motion.button>
+            <div className="input-group" style={{ marginBottom: 0, display: 'flex', flexDirection: 'column', height: '100%' }}>
+                <label className="input-label" style={{ opacity: 0 }}>&nbsp;</label>
+                <div className="flex items-center justify-center" style={{ flex: 1 }}>
+                    <motion.button
+                        className="btn btn-ghost btn-icon btn-sm"
+                        onClick={() => onRemove(index)}
+                        whileHover={{ scale: 1.1, background: 'rgba(239, 68, 68, 0.1)' }}
+                        whileTap={{ scale: 0.9 }}
+                        style={{ color: 'var(--danger-500)' }}
+                        title="Remove Criteria"
+                    >
+                        <X size={18} />
+                    </motion.button>
+                </div>
             </div>
         </motion.div>
     );

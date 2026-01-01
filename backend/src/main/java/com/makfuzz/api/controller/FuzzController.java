@@ -69,13 +69,27 @@ public class FuzzController {
         try {
             byte[] csvData = fuzzService.exportToCSV(fileId, request);
             
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.parseMediaType("text/csv"));
-            headers.setContentDisposition(ContentDisposition.attachment()
-                    .filename("makfuzz_results.csv")
-                    .build());
+            return ResponseEntity.ok()
+                    .contentType(MediaType.parseMediaType("text/csv"))
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"makfuzz_results.csv\"")
+                    .body(csvData);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    @PostMapping("/export/{fileId}/excel")
+    @Operation(summary = "Export results to Excel", description = "Export search results as an Excel file")
+    public ResponseEntity<byte[]> exportExcel(
+            @PathVariable String fileId,
+            @Valid @RequestBody SearchRequestDTO request) {
+        try {
+            byte[] excelData = fuzzService.exportToExcel(fileId, request);
             
-            return new ResponseEntity<>(csvData, headers, HttpStatus.OK);
+            return ResponseEntity.ok()
+                    .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"makfuzz_results.xlsx\"")
+                    .body(excelData);
         } catch (Exception e) {
             return ResponseEntity.badRequest().build();
         }

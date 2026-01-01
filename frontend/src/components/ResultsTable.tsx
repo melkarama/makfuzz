@@ -34,29 +34,18 @@ export default function ResultsTable({ results, headers, criteriaCount }: Result
             <table className="table">
                 <thead>
                     <tr>
-                        <th style={{ position: 'sticky', left: 0, zIndex: 2, background: 'var(--bg-surface)' }}>
+                        <th style={{ position: 'sticky', left: 0, top: 0, zIndex: 20, background: 'var(--bg-surface)' }}>
                             Score
                         </th>
                         {Array.from({ length: criteriaCount }).map((_, i) => (
-                            <th key={`criteria-${i}`} colSpan={3}>
-                                Criteria {i + 1}
-                            </th>
+                            <>
+                                <th key={`match-h-${i}`}>Criteria {i + 1}</th>
+                                <th key={`spell-h-${i}`}>Spell%</th>
+                                <th key={`phon-h-${i}`}>Phon%</th>
+                            </>
                         ))}
                         {headers.map((header, i) => (
                             <th key={`header-${i}`}>{header}</th>
-                        ))}
-                    </tr>
-                    <tr>
-                        <th style={{ position: 'sticky', left: 0, zIndex: 2, background: 'var(--bg-surface)' }}></th>
-                        {Array.from({ length: criteriaCount }).map((_, i) => (
-                            <>
-                                <th key={`match-${i}`} style={{ fontSize: '0.7rem' }}>Match</th>
-                                <th key={`spell-${i}`} style={{ fontSize: '0.7rem' }}>Spell%</th>
-                                <th key={`phon-${i}`} style={{ fontSize: '0.7rem' }}>Phon%</th>
-                            </>
-                        ))}
-                        {headers.map((_, i) => (
-                            <th key={`sub-${i}`}></th>
                         ))}
                     </tr>
                 </thead>
@@ -72,7 +61,7 @@ export default function ResultsTable({ results, headers, criteriaCount }: Result
                                 position: 'sticky',
                                 left: 0,
                                 background: 'var(--bg-elevated)',
-                                zIndex: 1
+                                zIndex: 5
                             }}>
                                 <div className="score-cell">
                                     <div className="score-bar">
@@ -105,9 +94,14 @@ export default function ResultsTable({ results, headers, criteriaCount }: Result
                                 </>
                             ))}
 
-                            {result.candidateValues.map((val, vIndex) => (
-                                <td key={`val-${vIndex}`}>{val || '-'}</td>
-                            ))}
+                            {result.candidateValues.map((val, vIndex) => {
+                                const isMatched = result.criteriaMatches.some(m => m.columnIndex === vIndex);
+                                return (
+                                    <td key={`val-${vIndex}`} className={isMatched ? 'match-highlight' : ''}>
+                                        {val || '-'}
+                                    </td>
+                                );
+                            })}
                         </motion.tr>
                     ))}
                 </tbody>

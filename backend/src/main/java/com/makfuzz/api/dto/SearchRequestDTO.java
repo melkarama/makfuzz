@@ -22,7 +22,7 @@ public class SearchRequestDTO {
     private double threshold = 0.5;
 
     @Min(value = 1, message = "Top N must be at least 1")
-    @Max(value = 10000, message = "Top N must be at most 10000")
+    @Max(value = 100000, message = "Top N must be at most 100000")
     private int topN = 100;
 
     private String language = "en";
