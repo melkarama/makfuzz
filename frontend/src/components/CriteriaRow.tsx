@@ -1,3 +1,4 @@
+import React, { useRef, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { X, Plus } from 'lucide-react';
 import { CriteriaInput } from '../types';
@@ -12,15 +13,56 @@ interface CriteriaRowProps {
 }
 
 export default function CriteriaRow({ criteria, index, onChange, onRemove, canRemove, onSearch }: CriteriaRowProps) {
-    const handleChange = (field: keyof CriteriaInput, value: any, triggerSearch: boolean = false) => {
-        onChange(index, { ...criteria, [field]: value });
-        if (triggerSearch && onSearch) {
-            onSearch();
+    const debounceTimer = useRef<any>();
+
+    // Local state for smooth typing - decoupled from expensive parent re-renders
+    const [localSpellWeight, setLocalSpellWeight] = useState(criteria.spellingWeight.toString());
+    const [localPhonWeight, setLocalPhonWeight] = useState(criteria.phoneticWeight.toString());
+    const [localMinSpell, setLocalMinSpell] = useState(Math.round(criteria.minSpellingScore * 100).toString());
+    const [localMinPhon, setLocalMinPhon] = useState(Math.round(criteria.minPhoneticScore * 100).toString());
+
+    // Sync local state ONLY when parent criteria changes fundamentally (e.g. initial load or add/remove)
+    // We don't sync on every minor change to avoid fighting the user's typing
+    useEffect(() => {
+        setLocalSpellWeight(prev => {
+            const currentProp = criteria.spellingWeight.toString();
+            return (parseFloat(prev) === criteria.spellingWeight) ? prev : currentProp;
+        });
+        setLocalPhonWeight(prev => {
+            const currentProp = criteria.phoneticWeight.toString();
+            return (parseFloat(prev) === criteria.phoneticWeight) ? prev : currentProp;
+        });
+        setLocalMinSpell(prev => {
+            const currentProp = Math.round(criteria.minSpellingScore * 100).toString();
+            return (parseInt(prev) === Math.round(criteria.minSpellingScore * 100)) ? prev : currentProp;
+        });
+        setLocalMinPhon(prev => {
+            const currentProp = Math.round(criteria.minPhoneticScore * 100).toString();
+            return (parseInt(prev) === Math.round(criteria.minPhoneticScore * 100)) ? prev : currentProp;
+        });
+    }, [criteria.spellingWeight, criteria.phoneticWeight, criteria.minSpellingScore, criteria.minPhoneticScore]);
+
+    useEffect(() => {
+        return () => {
+            if (debounceTimer.current) clearTimeout(debounceTimer.current);
+        };
+    }, []);
+
+    const triggerUpdate = (field: keyof CriteriaInput, rawValue: string) => {
+        let finalValue: any = rawValue;
+        if (field === 'spellingWeight' || field === 'phoneticWeight') {
+            finalValue = parseFloat(rawValue) || 0;
+        } else if (field === 'minSpellingScore' || field === 'minPhoneticScore') {
+            finalValue = (parseFloat(rawValue) || 0) / 100;
         }
+
+        // Update parent state
+        onChange(index, { ...criteria, [field]: finalValue });
     };
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === 'Enter' && onSearch) {
+            if (debounceTimer.current) clearTimeout(debounceTimer.current);
             onSearch();
         }
     };
@@ -41,7 +83,9 @@ export default function CriteriaRow({ criteria, index, onChange, onRemove, canRe
                     className="input"
                     placeholder="Enter search value..."
                     value={criteria.value}
-                    onChange={(e) => handleChange('value', e.target.value)}
+                    onChange={(e) => {
+                        onChange(index, { ...criteria, value: e.target.value });
+                    }}
                     onKeyDown={handleKeyDown}
                 />
             </div>
@@ -55,8 +99,11 @@ export default function CriteriaRow({ criteria, index, onChange, onRemove, canRe
                     min="0"
                     max="10"
                     step="0.1"
-                    value={criteria.spellingWeight}
-                    onChange={(e) => handleChange('spellingWeight', parseFloat(e.target.value) || 0, true)}
+                    value={localSpellWeight}
+                    onChange={(e) => {
+                        setLocalSpellWeight(e.target.value);
+                        triggerUpdate('spellingWeight', e.target.value);
+                    }}
                     onKeyDown={handleKeyDown}
                 />
             </div>
@@ -70,8 +117,11 @@ export default function CriteriaRow({ criteria, index, onChange, onRemove, canRe
                     min="0"
                     max="10"
                     step="0.1"
-                    value={criteria.phoneticWeight}
-                    onChange={(e) => handleChange('phoneticWeight', parseFloat(e.target.value) || 0, true)}
+                    value={localPhonWeight}
+                    onChange={(e) => {
+                        setLocalPhonWeight(e.target.value);
+                        triggerUpdate('phoneticWeight', e.target.value);
+                    }}
                     onKeyDown={handleKeyDown}
                 />
             </div>
@@ -85,8 +135,11 @@ export default function CriteriaRow({ criteria, index, onChange, onRemove, canRe
                     min="0"
                     max="100"
                     step="5"
-                    value={Math.round(criteria.minSpellingScore * 100)}
-                    onChange={(e) => handleChange('minSpellingScore', (parseFloat(e.target.value) || 0) / 100, true)}
+                    value={localMinSpell}
+                    onChange={(e) => {
+                        setLocalMinSpell(e.target.value);
+                        triggerUpdate('minSpellingScore', e.target.value);
+                    }}
                     onKeyDown={handleKeyDown}
                 />
             </div>
@@ -100,8 +153,11 @@ export default function CriteriaRow({ criteria, index, onChange, onRemove, canRe
                     min="0"
                     max="100"
                     step="5"
-                    value={Math.round(criteria.minPhoneticScore * 100)}
-                    onChange={(e) => handleChange('minPhoneticScore', (parseFloat(e.target.value) || 0) / 100, true)}
+                    value={localMinPhon}
+                    onChange={(e) => {
+                        setLocalMinPhon(e.target.value);
+                        triggerUpdate('minPhoneticScore', e.target.value);
+                    }}
                     onKeyDown={handleKeyDown}
                 />
             </div>
@@ -112,7 +168,9 @@ export default function CriteriaRow({ criteria, index, onChange, onRemove, canRe
                 <select
                     className="input select"
                     value={criteria.matchingType}
-                    onChange={(e) => handleChange('matchingType', e.target.value as CriteriaInput['matchingType'], true)}
+                    onChange={(e) => {
+                        onChange(index, { ...criteria, matchingType: e.target.value as CriteriaInput['matchingType'] });
+                    }}
                 >
                     <option value="SIMILARITY">Similarity</option>
                     <option value="EXACT">Exact</option>

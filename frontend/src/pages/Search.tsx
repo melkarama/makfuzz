@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -103,11 +103,20 @@ export default function Search({
         });
     }, [setSearchState, onSearchStart]);
 
+    const [localThreshold, setLocalThreshold] = useState(Math.round(searchState.threshold * 100).toString());
+
+    useEffect(() => {
+        setLocalThreshold(Math.round(searchState.threshold * 100).toString());
+    }, [searchState.threshold]);
+
     const handleSearch = useCallback(async () => {
         if (!fileInfo) {
             setError('Please upload a file first');
             return;
         }
+
+        const val = parseInt(localThreshold);
+        const validatedThreshold = isNaN(val) ? 0.7 : Math.max(0, Math.min(100, val)) / 100;
 
         const validCriterias = searchState.criterias.filter(c => c.value.trim() !== '');
         if (validCriterias.length === 0) {
@@ -121,9 +130,27 @@ export default function Search({
         }
 
         setError(null);
-        onSearchStart();
+        const updatedState = { ...searchState, threshold: validatedThreshold };
+        setSearchState(updatedState);
+        onSearchStart(updatedState);
         navigate('/results');
-    }, [fileInfo, searchState, onSearchStart, navigate]);
+    }, [fileInfo, searchState, localThreshold, onSearchStart, navigate, setSearchState]);
+
+    const debounceTimer = useRef<any>();
+
+    useEffect(() => {
+        return () => {
+            if (debounceTimer.current) clearTimeout(debounceTimer.current);
+        };
+    }, []);
+
+    const handleThresholdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setLocalThreshold(e.target.value);
+        const val = parseInt(e.target.value);
+        if (!isNaN(val)) {
+            setSearchState(prev => ({ ...prev, threshold: Math.max(0, Math.min(100, val)) / 100 }));
+        }
+    };
 
     if (!fileInfo) {
         return (
@@ -237,19 +264,12 @@ export default function Search({
                                     min="0"
                                     max="100"
                                     step="5"
-                                    value={Math.round(searchState.threshold * 100)}
-                                    onChange={(e) => {
-                                        const val = parseInt(e.target.value);
-                                        if (isNaN(val)) return;
-                                        const newVal = Math.max(0, Math.min(100, val)) / 100;
-                                        setSearchState(prev => {
-                                            const newState = { ...prev, threshold: newVal };
-                                            onSearchStart(newState);
-                                            return newState;
-                                        });
-                                    }}
+                                    value={localThreshold}
+                                    onChange={handleThresholdChange}
                                     onKeyDown={(e) => {
-                                        if (e.key === 'Enter') handleSearch();
+                                        if (e.key === 'Enter') {
+                                            handleSearch();
+                                        }
                                     }}
                                 />
                                 <span className="font-bold">%</span>

@@ -18,7 +18,7 @@ function formatPercent(value: number): string {
     return (value * 100).toFixed(1) + '%';
 }
 
-export default function ResultsTable({ results, headers, criteriaCount }: ResultsTableProps) {
+const ResultsTable = React.memo(({ results, headers, criteriaCount }: ResultsTableProps) => {
     if (!results || results.length === 0) {
         return (
             <div className="empty-state">
@@ -112,7 +112,7 @@ export default function ResultsTable({ results, headers, criteriaCount }: Result
                             </td>
 
                             {result.criteriaMatches.map((match, mIndex) => (
-                                <>
+                                <React.Fragment key={mIndex}>
                                     <td key={`match-val-${mIndex}`}>
                                         <span className="badge badge-primary">
                                             {match.matchedValue || '-'}
@@ -128,7 +128,7 @@ export default function ResultsTable({ results, headers, criteriaCount }: Result
                                             {formatPercent(match.phoneticScore)}
                                         </span>
                                     </td>
-                                </>
+                                </React.Fragment>
                             ))}
 
                             {result.candidateValues.map((val, vIndex) => {
@@ -145,4 +145,6 @@ export default function ResultsTable({ results, headers, criteriaCount }: Result
             </table>
         </div>
     );
-}
+});
+
+export default ResultsTable;

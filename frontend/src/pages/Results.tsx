@@ -1,4 +1,4 @@
-import { useCallback, useState, useMemo } from 'react';
+import React, { useCallback, useState, useMemo, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -53,6 +53,164 @@ function formatPercent(value: number): string {
     return (value * 100).toFixed(2) + '%';
 }
 
+interface PaginationControlsProps {
+    localThreshold: string;
+    setLocalThreshold: (val: string) => void;
+    searchState: SearchState;
+    setSearchState: React.Dispatch<React.SetStateAction<SearchState>>;
+    onRefresh: (state?: SearchState) => void;
+    pageSize: number;
+    setPageSize: (size: number) => void;
+    currentPage: number;
+    setCurrentPage: React.Dispatch<React.SetStateAction<number>>;
+    totalPages: number;
+    showSettings?: boolean;
+}
+
+const PaginationControls = ({
+    localThreshold,
+    setLocalThreshold,
+    searchState,
+    setSearchState,
+    onRefresh,
+    pageSize,
+    setPageSize,
+    currentPage,
+    setCurrentPage,
+    totalPages,
+    showSettings = true
+}: PaginationControlsProps) => (
+    <div className="flex items-center gap-lg">
+        {showSettings && (
+            <>
+                {/* Global Threshold */}
+                <div className="flex items-center gap-xs">
+                    <span className="text-muted" style={{ fontSize: '0.85rem' }}>Threshold:</span>
+                    <div className="flex items-center gap-xs">
+                        <input
+                            type="number"
+                            className="input py-xs"
+                            style={{ width: '70px', textAlign: 'center', fontSize: '0.85rem' }}
+                            min="0"
+                            max="100"
+                            step="5"
+                            value={localThreshold}
+                            onChange={(e) => {
+                                setLocalThreshold(e.target.value);
+                                const val = parseInt(e.target.value);
+                                if (!isNaN(val)) {
+                                    setSearchState(prev => ({ ...prev, threshold: Math.max(0, Math.min(100, val)) / 100 }));
+                                }
+                            }}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                    const val = parseInt(localThreshold);
+                                    if (!isNaN(val)) {
+                                        const clamped = Math.max(0, Math.min(100, val));
+                                        const newVal = clamped / 100;
+                                        const newState = { ...searchState, threshold: newVal };
+                                        setSearchState(newState);
+                                        onRefresh(newState);
+                                    }
+                                }
+                            }}
+                        />
+                        <span className="font-bold" style={{ fontSize: '0.85rem' }}>%</span>
+                    </div>
+                </div>
+
+                {/* Language Selection */}
+                <div className="flex items-center gap-xs">
+                    <select
+                        className="input select py-xs"
+                        style={{ width: 'auto', paddingRight: '28px', fontSize: '0.85rem', backgroundPosition: 'right 8px center' }}
+                        value={searchState.language}
+                        onChange={(e) => {
+                            const newLang = e.target.value as 'en' | 'fr';
+                            const newState = { ...searchState, language: newLang };
+                            setSearchState(newState);
+                            onRefresh(newState);
+                        }}
+                    >
+                        <option value="en">EN</option>
+                        <option value="fr">FR</option>
+                    </select>
+                </div>
+            </>
+        )}
+
+        <div className="flex items-center gap-sm">
+            <span className="text-muted" style={{ fontSize: '0.85rem' }}>Page Size:</span>
+            <select
+                className="input select py-xs"
+                style={{ width: 'auto', paddingRight: '30px' }}
+                value={pageSize}
+                onChange={(e) => {
+                    setPageSize(parseInt(e.target.value));
+                    setCurrentPage(1);
+                }}
+            >
+                <option value={10}>10</option>
+                <option value={100}>100</option>
+                <option value={1000}>1000</option>
+                <option value={10000}>10000</option>
+            </select>
+        </div>
+
+        <div className="flex items-center gap-xs">
+            <button
+                className="btn btn-ghost btn-icon btn-sm"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(1)}
+            >
+                <ChevronsLeft size={16} />
+            </button>
+            <button
+                className="btn btn-ghost btn-icon btn-sm"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage((prev: number) => Math.max(1, prev - 1))}
+            >
+                <ChevronLeft size={16} />
+            </button>
+
+            <div className="flex items-center gap-xs px-md">
+                <span className="text-muted" style={{ fontSize: '0.85rem' }}>Page</span>
+                <input
+                    type="number"
+                    className="input py-xs no-spinners"
+                    style={{ width: '60px', textAlign: 'center' }}
+                    min={1}
+                    max={totalPages}
+                    defaultValue={currentPage}
+                    key={`page-input-${currentPage}`}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                            const val = parseInt((e.target as HTMLInputElement).value);
+                            if (val >= 1 && val <= totalPages) setCurrentPage(val);
+                        }
+                    }}
+                />
+                <span className="text-muted" style={{ fontSize: '0.85rem' }}>of {totalPages}</span>
+            </div>
+
+            <button
+                className="btn btn-ghost btn-icon btn-sm"
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage((prev: number) => Math.min(totalPages, prev + 1))}
+            >
+                <ChevronRight size={16} />
+            </button>
+            <button
+                className="btn btn-ghost btn-icon btn-sm"
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage(totalPages)}
+            >
+                <ChevronsRight size={16} />
+            </button>
+        </div>
+    </div>
+);
+
 export default function Results({
     fileInfo,
     searchResults,
@@ -65,6 +223,13 @@ export default function Results({
     const [currentPage, setCurrentPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
     const [showQuickEdit, setShowQuickEdit] = useState(false);
+    const debounceTimer = useRef<any>();
+
+    useEffect(() => {
+        return () => {
+            if (debounceTimer.current) clearTimeout(debounceTimer.current);
+        };
+    }, []);
 
     const onCriteriaChange = useCallback((index: number, criteria: CriteriaInput) => {
         setSearchState(prev => {
@@ -164,6 +329,12 @@ export default function Results({
         return searchResults.results.slice(start, start + pageSize);
     }, [searchResults, currentPage, pageSize]);
 
+    const [localThreshold, setLocalThreshold] = useState(Math.round(searchState.threshold * 100).toString());
+
+    useEffect(() => {
+        setLocalThreshold(Math.round(searchState.threshold * 100).toString());
+    }, [searchState.threshold]);
+
     if (!searchResults) {
         return (
             <motion.div
@@ -193,119 +364,7 @@ export default function Results({
         );
     }
 
-    const PaginationControls = () => (
-        <div className="flex items-center gap-lg">
-            {/* Global Threshold */}
-            <div className="flex items-center gap-xs">
-                <span className="text-muted" style={{ fontSize: '0.85rem' }}>Threshold:</span>
-                <div className="flex items-center gap-xs">
-                    <input
-                        type="number"
-                        className="input py-xs"
-                        style={{ width: '70px', textAlign: 'center', fontSize: '0.85rem' }}
-                        min="0"
-                        max="100"
-                        step="5"
-                        value={Math.round(searchState.threshold * 100)}
-                        onChange={(e) => {
-                            const val = parseInt(e.target.value);
-                            if (isNaN(val)) return;
-                            const clamped = Math.max(0, Math.min(100, val));
-                            const newState = { ...searchState, threshold: clamped / 100 };
-                            setSearchState(newState);
-                            onRefresh(newState);
-                        }}
-                    />
-                    <span className="font-bold" style={{ fontSize: '0.85rem' }}>%</span>
-                </div>
-            </div>
 
-            {/* Language Selection */}
-            <div className="flex items-center gap-xs">
-                <select
-                    className="input select py-xs"
-                    style={{ width: 'auto', paddingRight: '28px', fontSize: '0.85rem', backgroundPosition: 'right 8px center' }}
-                    value={searchState.language}
-                    onChange={(e) => {
-                        const newLang = e.target.value as 'en' | 'fr';
-                        const newState = { ...searchState, language: newLang };
-                        setSearchState(newState);
-                        onRefresh(newState);
-                    }}
-                >
-                    <option value="en">EN</option>
-                    <option value="fr">FR</option>
-                </select>
-            </div>
-
-            <div className="flex items-center gap-sm">
-                <span className="text-muted" style={{ fontSize: '0.85rem' }}>Page Size:</span>
-                <select
-                    className="input select py-xs"
-                    style={{ width: 'auto', paddingRight: '30px' }}
-                    value={pageSize}
-                    onChange={(e) => {
-                        setPageSize(parseInt(e.target.value));
-                        setCurrentPage(1);
-                    }}
-                >
-                    <option value={10}>10</option>
-                    <option value={100}>100</option>
-                    <option value={1000}>1000</option>
-                    <option value={10000}>10000</option>
-                </select>
-            </div>
-
-            <div className="flex items-center gap-xs">
-                <button
-                    className="btn btn-ghost btn-icon btn-sm"
-                    disabled={currentPage === 1}
-                    onClick={() => setCurrentPage(1)}
-                >
-                    <ChevronsLeft size={16} />
-                </button>
-                <button
-                    className="btn btn-ghost btn-icon btn-sm"
-                    disabled={currentPage === 1}
-                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                >
-                    <ChevronLeft size={16} />
-                </button>
-
-                <div className="flex items-center gap-xs px-md">
-                    <span className="text-muted" style={{ fontSize: '0.85rem' }}>Page</span>
-                    <input
-                        type="number"
-                        className="input py-xs no-spinners"
-                        style={{ width: '60px', textAlign: 'center' }}
-                        min={1}
-                        max={totalPages}
-                        value={currentPage}
-                        onChange={(e) => {
-                            const val = parseInt(e.target.value);
-                            if (val >= 1 && val <= totalPages) setCurrentPage(val);
-                        }}
-                    />
-                    <span className="text-muted" style={{ fontSize: '0.85rem' }}>of {totalPages}</span>
-                </div>
-
-                <button
-                    className="btn btn-ghost btn-icon btn-sm"
-                    disabled={currentPage === totalPages}
-                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                >
-                    <ChevronRight size={16} />
-                </button>
-                <button
-                    className="btn btn-ghost btn-icon btn-sm"
-                    disabled={currentPage === totalPages}
-                    onClick={() => setCurrentPage(totalPages)}
-                >
-                    <ChevronsRight size={16} />
-                </button>
-            </div>
-        </div>
-    );
 
     return (
         <motion.div
@@ -542,7 +601,18 @@ export default function Results({
                         <FileSearch size={20} />
                         Match Results ({searchResults.totalFound.toLocaleString()} found)
                     </h3>
-                    <PaginationControls />
+                    <PaginationControls
+                        localThreshold={localThreshold}
+                        setLocalThreshold={setLocalThreshold}
+                        searchState={searchState}
+                        setSearchState={setSearchState}
+                        onRefresh={onRefresh}
+                        pageSize={pageSize}
+                        setPageSize={setPageSize}
+                        currentPage={currentPage}
+                        setCurrentPage={setCurrentPage}
+                        totalPages={totalPages}
+                    />
                 </div>
 
                 <div className="card-body" style={{ padding: 0 }}>
@@ -558,7 +628,19 @@ export default function Results({
                     <div className="text-muted" style={{ fontSize: '0.85rem' }}>
                         Showing {Math.min(searchResults.results.length, (currentPage - 1) * pageSize + 1)} to {Math.min(searchResults.results.length, currentPage * pageSize)} of {searchResults.results.length} matches
                     </div>
-                    <PaginationControls />
+                    <PaginationControls
+                        showSettings={false}
+                        localThreshold={localThreshold}
+                        setLocalThreshold={setLocalThreshold}
+                        searchState={searchState}
+                        setSearchState={setSearchState}
+                        onRefresh={onRefresh}
+                        pageSize={pageSize}
+                        setPageSize={setPageSize}
+                        currentPage={currentPage}
+                        setCurrentPage={setCurrentPage}
+                        totalPages={totalPages}
+                    />
                 </div>
             </motion.div>
         </motion.div>
