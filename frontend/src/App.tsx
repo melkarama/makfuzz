@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { Routes, Route, useNavigate } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
+import { Toaster, toast } from 'react-hot-toast';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import FuzzExplorer from './pages/FuzzExplorer';
@@ -33,8 +34,11 @@ function App() {
         try {
             const results = await api.search(id, stateToUse);
             setSearchResults(results);
-        } catch (err) {
+            // Don't toast for every auto-debounce search, but maybe for manual ones or file changes
+        } catch (err: any) {
             console.error('Search failed:', err);
+            const message = err.response?.data?.message || 'Search failed. Please check your criteria.';
+            toast.error(message);
         } finally {
             setIsSearching(false);
         }
@@ -57,6 +61,34 @@ function App() {
 
     return (
         <div className="app-shell">
+            <Toaster
+                position="top-right"
+                toastOptions={{
+                    duration: 4000,
+                    style: {
+                        background: 'var(--bg-glass-heavy)',
+                        color: 'var(--text-primary)',
+                        border: '1px solid var(--border-light)',
+                        backdropFilter: 'blur(12px)',
+                        fontSize: '0.9rem',
+                        borderRadius: 'var(--radius-md)',
+                        padding: '12px 16px',
+                        boxShadow: 'var(--shadow-lg)'
+                    },
+                    success: {
+                        iconTheme: {
+                            primary: 'var(--success-500)',
+                            secondary: 'white',
+                        },
+                    },
+                    error: {
+                        iconTheme: {
+                            primary: 'var(--danger-500)',
+                            secondary: 'white',
+                        },
+                    },
+                }}
+            />
             <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
 
             <main className="main-content">

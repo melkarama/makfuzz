@@ -1,6 +1,7 @@
 import React, { useCallback, useState, useMemo, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { toast } from 'react-hot-toast';
 import {
     Download,
     FileSpreadsheet,
@@ -268,13 +269,41 @@ export default function FuzzExplorer({
         }
     }, [searchResults, pageSize, currentPage]);
 
-    const onCriteriaChange = useCallback((index: number, criteria: CriteriaInput) => {
+    const validateRegex = useCallback((state: SearchState) => {
+        for (const c of state.criterias) {
+            if (c.matchingType === 'REGEX' && c.value.trim() !== '') {
+                try {
+                    new RegExp(c.value);
+                } catch (e) {
+                    toast.error(`Invalid Regex: "${c.value}"`);
+                    return false;
+                }
+            }
+        }
+        return true;
+    }, []);
+
+    const handleRefresh = useCallback((state?: SearchState) => {
+        const stateToUse = state || searchState;
+        if (validateRegex(stateToUse)) {
+            onRefresh(stateToUse);
+        }
+    }, [onRefresh, searchState, validateRegex]);
+
+    const onCriteriaChange = useCallback((index: number, criteria: CriteriaInput, shouldRefresh = false) => {
         setSearchState(prev => {
             const newCriterias = [...prev.criterias];
             newCriterias[index] = criteria;
-            return { ...prev, criterias: newCriterias };
+            const newState = { ...prev, criterias: newCriterias };
+            if (shouldRefresh) {
+                if (debounceTimer.current) clearTimeout(debounceTimer.current);
+                debounceTimer.current = setTimeout(() => {
+                    handleRefresh(newState);
+                }, 400);
+            }
+            return newState;
         });
-    }, [setSearchState]);
+    }, [setSearchState, handleRefresh]);
 
     const addCriteria = useCallback(() => {
         setSearchState(prev => ({
@@ -333,8 +362,10 @@ export default function FuzzExplorer({
             a.click();
             window.URL.revokeObjectURL(url);
             document.body.removeChild(a);
+            toast.success('CSV exported successfully');
         } catch (error) {
             console.error('Export failed:', error);
+            toast.error('Failed to export CSV');
         }
     }, [fileInfo, searchState]);
 
@@ -351,8 +382,10 @@ export default function FuzzExplorer({
             a.click();
             window.URL.revokeObjectURL(url);
             document.body.removeChild(a);
+            toast.success('Excel exported successfully');
         } catch (error) {
             console.error('Export failed:', error);
+            toast.error('Failed to export Excel');
         }
     }, [fileInfo, searchState]);
 
@@ -601,7 +634,7 @@ export default function FuzzExplorer({
                             <div className="flex items-center gap-sm">
                                 <motion.button
                                     className={`btn btn-primary btn-sm overflow-hidden ${isSearching ? 'searching-pulse' : ''}`}
-                                    onClick={() => onRefresh()}
+                                    onClick={() => handleRefresh()}
                                     disabled={isSearching}
                                     whileHover={{ scale: 1.02 }}
                                     whileTap={{ scale: 0.98 }}
@@ -657,7 +690,7 @@ export default function FuzzExplorer({
                                         onChange={onCriteriaChange}
                                         onRemove={removeCriteria}
                                         canRemove={true}
-                                        onSearch={() => onRefresh()}
+                                        onSearch={() => handleRefresh()}
                                     />
                                 ))}
                             </div>

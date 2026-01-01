@@ -6,7 +6,7 @@ import { CriteriaInput } from '../types';
 interface CriteriaRowProps {
     criteria: CriteriaInput;
     index: number;
-    onChange: (index: number, criteria: CriteriaInput) => void;
+    onChange: (index: number, criteria: CriteriaInput, shouldRefresh?: boolean) => void;
     onRemove: (index: number) => void;
     canRemove: boolean;
     onSearch?: () => void;
@@ -90,7 +90,7 @@ export default function CriteriaRow({ criteria, index, onChange, onRemove, canRe
                     placeholder="Enter search value..."
                     value={criteria.value}
                     onChange={(e) => {
-                        onChange(index, { ...criteria, value: e.target.value });
+                        onChange(index, { ...criteria, value: e.target.value }, true);
                     }}
                     onKeyDown={handleKeyDown}
                     onKeyUp={handleKeyUp}
@@ -110,7 +110,7 @@ export default function CriteriaRow({ criteria, index, onChange, onRemove, canRe
                     onChange={(e) => {
                         setLocalSpellWeight(e.target.value);
                         triggerUpdate('spellingWeight', e.target.value);
-                        if (!isKeyDown.current && onSearch) onSearch();
+                        if (!isKeyDown.current) onChange(index, { ...criteria, spellingWeight: parseFloat(e.target.value) || 0 }, true);
                     }}
                     onKeyDown={handleKeyDown}
                     onKeyUp={handleKeyUp}
@@ -130,7 +130,7 @@ export default function CriteriaRow({ criteria, index, onChange, onRemove, canRe
                     onChange={(e) => {
                         setLocalPhonWeight(e.target.value);
                         triggerUpdate('phoneticWeight', e.target.value);
-                        if (!isKeyDown.current && onSearch) onSearch();
+                        if (!isKeyDown.current) onChange(index, { ...criteria, phoneticWeight: parseFloat(e.target.value) || 0 }, true);
                     }}
                     onKeyDown={handleKeyDown}
                     onKeyUp={handleKeyUp}
@@ -150,7 +150,7 @@ export default function CriteriaRow({ criteria, index, onChange, onRemove, canRe
                     onChange={(e) => {
                         setLocalMinSpell(e.target.value);
                         triggerUpdate('minSpellingScore', e.target.value);
-                        if (!isKeyDown.current && onSearch) onSearch();
+                        if (!isKeyDown.current) onChange(index, { ...criteria, minSpellingScore: (parseFloat(e.target.value) || 0) / 100 }, true);
                     }}
                     onKeyDown={handleKeyDown}
                     onKeyUp={handleKeyUp}
@@ -170,7 +170,7 @@ export default function CriteriaRow({ criteria, index, onChange, onRemove, canRe
                     onChange={(e) => {
                         setLocalMinPhon(e.target.value);
                         triggerUpdate('minPhoneticScore', e.target.value);
-                        if (!isKeyDown.current && onSearch) onSearch();
+                        if (!isKeyDown.current) onChange(index, { ...criteria, minPhoneticScore: (parseFloat(e.target.value) || 0) / 100 }, true);
                     }}
                     onKeyDown={handleKeyDown}
                     onKeyUp={handleKeyUp}
@@ -184,7 +184,8 @@ export default function CriteriaRow({ criteria, index, onChange, onRemove, canRe
                     className="input select"
                     value={criteria.matchingType}
                     onChange={(e) => {
-                        onChange(index, { ...criteria, matchingType: e.target.value as CriteriaInput['matchingType'] });
+                        const newType = e.target.value as CriteriaInput['matchingType'];
+                        onChange(index, { ...criteria, matchingType: newType }, true);
                     }}
                 >
                     <option value="SIMILARITY">Similarity</option>
