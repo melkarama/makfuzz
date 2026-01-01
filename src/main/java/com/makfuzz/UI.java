@@ -1,14 +1,10 @@
 package com.makfuzz;
 
-import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import java.awt.Color;
 import java.awt.Desktop;
 import java.awt.Dimension;
-import java.awt.FlowLayout;
 import java.awt.Font;
-import java.awt.GridBagLayout;
-import net.miginfocom.swing.MigLayout;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
@@ -21,8 +17,6 @@ import java.util.Locale;
 import java.util.ResourceBundle;
 
 import javax.swing.BorderFactory;
-import javax.swing.Box;
-import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JFileChooser;
@@ -54,14 +48,15 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import com.formdev.flatlaf.FlatClientProperties;
-import com.formdev.flatlaf.extras.FlatSVGIcon;
 
+import com.formdev.flatlaf.FlatClientProperties;
 import com.makfuzz.core.Criteria;
 import com.makfuzz.core.Fuzz;
 import com.makfuzz.core.LineSimResult;
 import com.makfuzz.core.SearchResult;
 import com.makfuzz.core.SimResult;
+
+import net.miginfocom.swing.MigLayout;
 
 public class UI extends JFrame {
 	private List<String[]> database;
@@ -153,7 +148,6 @@ public class UI extends JFrame {
 		// Panel backgrounds
 		UIManager.put("Panel.background", new Color(249, 250, 251));
 
-
 		setTitle("MakFuzz - Fuzzy Search ✨");
 		setSize(1400, 850);
 		setDefaultCloseOperation(EXIT_ON_CLOSE);
@@ -176,8 +170,6 @@ public class UI extends JFrame {
 		JPanel headerPanel = new JPanel(new MigLayout("fillx, ins 15 10 8 10, wrap 1", "[grow]"));
 		headerPanel.setBackground(new Color(249, 250, 251)); // Light gray background
 
-
-
 		// 0. App Title Section
 		JPanel titleBox = new JPanel(new MigLayout("fillx, ins 0", "[grow][]"));
 		appTitle = new JLabel("MakFuzz");
@@ -192,14 +184,12 @@ public class UI extends JFrame {
 		titleBox.add(appSubtitle, "newline, growx");
 		headerPanel.add(titleBox, "growx, gapbottom 12");
 
-
 		// 1. Data Source Card
 		JPanel sourcePanel = new JPanel(new MigLayout("ins 8, fillx", "[][grow][][]"));
 		sourcePanel.setBackground(Color.WHITE);
-		sourcePanel.setBorder(BorderFactory.createCompoundBorder(
-				BorderFactory.createLineBorder(new Color(229, 231, 235), 1),
-				BorderFactory.createEmptyBorder(5, 5, 5, 5)));
-
+		sourcePanel.setBorder(
+				BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(new Color(229, 231, 235), 1),
+						BorderFactory.createEmptyBorder(5, 5, 5, 5)));
 
 		srcLabel = new JLabel("Data Source:");
 		srcLabel.setFont(new Font("SansSerif", Font.BOLD, 11));
@@ -207,9 +197,9 @@ public class UI extends JFrame {
 
 		sourcePathField = new JTextField("", 60);
 		sourcePathField.setEditable(false);
-		sourcePathField.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, bundle.getString("source.placeholder"));
+		sourcePathField.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT,
+				bundle.getString("source.placeholder"));
 		sourcePathField.putClientProperty(FlatClientProperties.STYLE, "arc: 12;");
-
 
 		browseBtn = new JButton("Browse");
 		browseBtn.addActionListener(e -> chooseFileAndColumns());
@@ -229,7 +219,6 @@ public class UI extends JFrame {
 
 		headerPanel.add(sourcePanel, "growx");
 
-
 		JPanel sourceInfoPanel = new JPanel(new MigLayout("ins 0 15 0 15", "[grow]"));
 		sourceInfoPanel.setOpaque(false);
 		selectedColumnsLabel = new JLabel("Selected Columns: None");
@@ -237,7 +226,6 @@ public class UI extends JFrame {
 		selectedColumnsLabel.setForeground(new Color(107, 114, 128));
 		sourceInfoPanel.add(selectedColumnsLabel, "growx");
 		headerPanel.add(sourceInfoPanel, "growx, gaptop 3, gapbottom 10");
-
 
 		// 2. Search Card
 		setupTopPanel(headerPanel);
@@ -419,7 +407,8 @@ public class UI extends JFrame {
 		}
 
 		File f = new File(path);
-		// Only reload if file changed. Column selection changes don't require reloading the whole CSV into 'database' field
+		// Only reload if file changed. Column selection changes don't require reloading
+		// the whole CSV into 'database' field
 		if (path.equals(lastLoadedPath) && f.lastModified() == lastLoadedTimestamp && database != null) {
 			return;
 		}
@@ -591,9 +580,9 @@ public class UI extends JFrame {
 	private void setupTopPanel(JPanel parent) {
 		JPanel mainPanel = new JPanel(new MigLayout("fillx, ins 10, wrap 1", "[grow]"));
 		mainPanel.setBackground(Color.WHITE);
-		mainPanel.setBorder(BorderFactory.createCompoundBorder(
-				BorderFactory.createLineBorder(new Color(229, 231, 235), 1),
-				BorderFactory.createEmptyBorder(8, 8, 8, 8)));
+		mainPanel.setBorder(
+				BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(new Color(229, 231, 235), 1),
+						BorderFactory.createEmptyBorder(8, 8, 8, 8)));
 
 		JPanel configHeader = new JPanel(new MigLayout("fillx, ins 0", "[grow][]"));
 		configHeader.setOpaque(false);
@@ -614,9 +603,7 @@ public class UI extends JFrame {
 		criteriaContainer.setOpaque(false);
 		mainPanel.add(criteriaContainer, "growx, gapbottom 10");
 
-
 		JPanel bottomBar = new JPanel(new MigLayout("ins 0, fillx", "[][][grow][][][][][][]"));
-
 
 		JLabel searchLangLabel = new JLabel("Search Lang:");
 		bottomBar.add(searchLangLabel);
@@ -725,7 +712,6 @@ public class UI extends JFrame {
 		JPanel loadingPanel = new JPanel(new MigLayout("fill, ins 0", "[grow, center]", "[grow, center]"));
 		loadingPanel.setBackground(Color.WHITE);
 
-
 		JPanel loadingContent = new JPanel(new MigLayout("ins 0, wrap 1, align center", "[center]"));
 		loadingContent.setOpaque(false);
 
@@ -742,7 +728,6 @@ public class UI extends JFrame {
 
 		loadingPanel.add(loadingContent);
 
-
 		// Setup Card Layout
 		centerCardLayout = new CardLayout();
 		centerPanel = new JPanel(centerCardLayout);
@@ -757,9 +742,9 @@ public class UI extends JFrame {
 		JPanel footer = new JPanel(new MigLayout("fillx, ins 0 15 0 15, aligny center", "[grow][]", "[]"));
 		footer.setBackground(new Color(17, 24, 39)); // Modern dark slate
 		footer.setPreferredSize(new Dimension(getWidth(), 40));
-		footer.setBorder(BorderFactory.createCompoundBorder(
-				BorderFactory.createMatteBorder(2, 0, 0, 0, new Color(99, 102, 241)),
-				BorderFactory.createEmptyBorder(0, 15, 0, 15)));
+		footer.setBorder(
+				BorderFactory.createCompoundBorder(BorderFactory.createMatteBorder(2, 0, 0, 0, new Color(99, 102, 241)),
+						BorderFactory.createEmptyBorder(0, 15, 0, 15)));
 
 		// statusLabel intentionally not added to footer
 
@@ -776,7 +761,6 @@ public class UI extends JFrame {
 		footer.add(metricPanel, "right, aligny center");
 		add(footer, "growx");
 	}
-
 
 	private JLabel createClickableMetricLabel(String bundleKey) {
 		JLabel label = new JLabel("");
@@ -1088,7 +1072,8 @@ public class UI extends JFrame {
 			int numCriteria = criteriaList.size();
 			int numAvail = availableColumns.size();
 
-			// Expected columns: TableIndex + FileIndex + numAvail + (3 * numCriteria) + Score + HIDDEN_DATA
+			// Expected columns: TableIndex + FileIndex + numAvail + (3 * numCriteria) +
+			// Score + HIDDEN_DATA
 			int expectedCols = 4 + numAvail + 3 * numCriteria;
 			if (tableModel.getColumnCount() != expectedCols) {
 				updateTexts();
@@ -1098,7 +1083,8 @@ public class UI extends JFrame {
 
 			// Update Status Bar
 			if (totalFoundLabel != null) {
-				totalFoundLabel.setText(MessageFormat.format(bundle.getString("status.total"), searchResult.getTotalFound(), searchResult.getTotalResults()));
+				totalFoundLabel.setText(MessageFormat.format(bundle.getString("status.total"),
+						searchResult.getTotalFound(), searchResult.getTotalResults()));
 			}
 
 			int tableRowIndex = 1;
@@ -1312,7 +1298,8 @@ public class UI extends JFrame {
 			// Write Data for ALL found results
 			for (LineSimResult res : lastSearchResult.getAllFoundResults()) {
 				String[] cand = res.getCandidate();
-				// Use the candidate array which contains the original fields (except the last element which is the row index)
+				// Use the candidate array which contains the original fields (except the last
+				// element which is the row index)
 				int numFields = originalHeaders.length;
 				for (int k = 0; k < numFields; k++) {
 					String val = (k < cand.length) ? cand[k] : "";
@@ -1528,7 +1515,7 @@ public class UI extends JFrame {
 				for (int j = 0; j < tableModel.getColumnCount(); j++) {
 					Cell cell = row.createCell(colIdx++);
 					Object val = tableModel.getValueAt(i, j);
-					
+
 					// Handle the HIDDEN_DATA column separately (it's the last one)
 					if (j == tableModel.getColumnCount() - 1) {
 						int fileRowIdx = Integer.parseInt(tableModel.getValueAt(i, 1).toString());
@@ -1539,7 +1526,7 @@ public class UI extends JFrame {
 
 					if (val instanceof Number) {
 						cell.setCellValue(((Number) val).doubleValue());
-						
+
 						// Apply percentage format to score columns
 						boolean isScoreCol = (j == 2 + numAvail);
 						boolean isCriteriaScoreCol = (j > 2 + numAvail) && ((j - 2 - numAvail - 1) % 3 != 0);
@@ -1638,11 +1625,9 @@ public class UI extends JFrame {
 			removeBtn.addActionListener(e -> removeAction.accept(this));
 			add(removeBtn);
 
-
 			criteriaIndexLabel = new JLabel("Crit " + (criteriaLines.size() + 1));
 			criteriaIndexLabel.setFont(new Font("SansSerif", Font.BOLD, 13));
 			add(criteriaIndexLabel, "w 60!");
-
 
 			valueLabel = new JLabel("Value:");
 			add(valueLabel);
@@ -1673,7 +1658,6 @@ public class UI extends JFrame {
 			phoneticWeightSpinner.addChangeListener(e -> onEnter.run());
 			add(phoneticWeightSpinner, "w 70!, h 32!");
 
-
 			minSpellingLabel = new JLabel("Min Spell:");
 			minSpellingField = new JSpinner(new SpinnerNumberModel(0.8, 0.0, 1.0, 0.05));
 			setupDotDecimalSpinner(minSpellingField, "0.00");
@@ -1697,7 +1681,6 @@ public class UI extends JFrame {
 			minPhoneticField.addChangeListener(e -> onEnter.run());
 			add(minPhoneticLabel);
 			add(minPhoneticField, "w 80!, h 32!");
-
 
 			typeCombo.addActionListener(e -> {
 				boolean isSimilarity = typeCombo.getSelectedItem() == Criteria.MatchingType.SIMILARITY;
