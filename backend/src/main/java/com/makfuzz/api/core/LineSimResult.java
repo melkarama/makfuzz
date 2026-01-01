@@ -10,6 +10,7 @@ public class LineSimResult implements Comparable<LineSimResult> {
     private String[] candidate;
     private SimResult[] simResults;
     private SimResult maxSimResult;
+    private int lineIndex;
 
     public void initSimResults(List<Criteria> criterias) {
         simResults = new SimResult[criterias.size()];

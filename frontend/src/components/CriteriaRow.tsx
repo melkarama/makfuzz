@@ -8,11 +8,21 @@ interface CriteriaRowProps {
     onChange: (index: number, criteria: CriteriaInput) => void;
     onRemove: (index: number) => void;
     canRemove: boolean;
+    onSearch?: () => void;
 }
 
-export default function CriteriaRow({ criteria, index, onChange, onRemove, canRemove }: CriteriaRowProps) {
-    const handleChange = (field: keyof CriteriaInput, value: any) => {
+export default function CriteriaRow({ criteria, index, onChange, onRemove, canRemove, onSearch }: CriteriaRowProps) {
+    const handleChange = (field: keyof CriteriaInput, value: any, triggerSearch: boolean = false) => {
         onChange(index, { ...criteria, [field]: value });
+        if (triggerSearch && onSearch) {
+            onSearch();
+        }
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter' && onSearch) {
+            onSearch();
+        }
     };
 
     return (
@@ -32,6 +42,7 @@ export default function CriteriaRow({ criteria, index, onChange, onRemove, canRe
                     placeholder="Enter search value..."
                     value={criteria.value}
                     onChange={(e) => handleChange('value', e.target.value)}
+                    onKeyDown={handleKeyDown}
                 />
             </div>
 
@@ -45,7 +56,8 @@ export default function CriteriaRow({ criteria, index, onChange, onRemove, canRe
                     max="10"
                     step="0.1"
                     value={criteria.spellingWeight}
-                    onChange={(e) => handleChange('spellingWeight', parseFloat(e.target.value) || 0)}
+                    onChange={(e) => handleChange('spellingWeight', parseFloat(e.target.value) || 0, true)}
+                    onKeyDown={handleKeyDown}
                 />
             </div>
 
@@ -59,7 +71,8 @@ export default function CriteriaRow({ criteria, index, onChange, onRemove, canRe
                     max="10"
                     step="0.1"
                     value={criteria.phoneticWeight}
-                    onChange={(e) => handleChange('phoneticWeight', parseFloat(e.target.value) || 0)}
+                    onChange={(e) => handleChange('phoneticWeight', parseFloat(e.target.value) || 0, true)}
+                    onKeyDown={handleKeyDown}
                 />
             </div>
 
@@ -73,7 +86,8 @@ export default function CriteriaRow({ criteria, index, onChange, onRemove, canRe
                     max="100"
                     step="5"
                     value={Math.round(criteria.minSpellingScore * 100)}
-                    onChange={(e) => handleChange('minSpellingScore', (parseFloat(e.target.value) || 0) / 100)}
+                    onChange={(e) => handleChange('minSpellingScore', (parseFloat(e.target.value) || 0) / 100, true)}
+                    onKeyDown={handleKeyDown}
                 />
             </div>
 
@@ -87,7 +101,8 @@ export default function CriteriaRow({ criteria, index, onChange, onRemove, canRe
                     max="100"
                     step="5"
                     value={Math.round(criteria.minPhoneticScore * 100)}
-                    onChange={(e) => handleChange('minPhoneticScore', (parseFloat(e.target.value) || 0) / 100)}
+                    onChange={(e) => handleChange('minPhoneticScore', (parseFloat(e.target.value) || 0) / 100, true)}
+                    onKeyDown={handleKeyDown}
                 />
             </div>
 
@@ -97,7 +112,7 @@ export default function CriteriaRow({ criteria, index, onChange, onRemove, canRe
                 <select
                     className="input select"
                     value={criteria.matchingType}
-                    onChange={(e) => handleChange('matchingType', e.target.value as CriteriaInput['matchingType'])}
+                    onChange={(e) => handleChange('matchingType', e.target.value as CriteriaInput['matchingType'], true)}
                 >
                     <option value="SIMILARITY">Similarity</option>
                     <option value="EXACT">Exact</option>

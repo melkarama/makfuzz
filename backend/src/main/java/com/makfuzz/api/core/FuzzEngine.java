@@ -49,11 +49,16 @@ public class FuzzEngine {
             }
         }
 
-        List<LineSimResult> allMatches = candidates.parallelStream().map(t -> {
+        List<String[]> candidateList = candidates instanceof List ? (List<String[]>) candidates : candidates.stream().toList();
+
+        List<LineSimResult> allMatches = java.util.stream.IntStream.range(0, candidateList.size()).parallel().mapToObj(lineIdx -> {
+            String[] t = candidateList.get(lineIdx);
             LineSimResult lsr = new LineSimResult();
             lsr.setCandidate(t);
+            lsr.setLineIndex(lineIdx + 1); // 1-based index
             lsr.initSimResults(criterias);
-
+            
+            // ... rest of the logic remains same ...
             boolean isExactOrRegexMatchingLineFalse = false;
 
             for (int i = 0; i < lsr.getSimResults().length; i++) {

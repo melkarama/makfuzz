@@ -19,7 +19,8 @@ import {
     Settings,
     X,
     Plus,
-    Filter
+    Filter,
+    Columns
 } from 'lucide-react';
 import ResultsTable from '../components/ResultsTable';
 import CriteriaRow from '../components/CriteriaRow';
@@ -89,24 +90,34 @@ export default function Results({
 
     const removeCriteria = useCallback((index: number) => {
         setSearchState(prev => {
-            const newCriterias = prev.criterias.filter((_, i) => i !== index);
+            let newCriterias = prev.criterias.filter((_, i) => i !== index);
             if (newCriterias.length === 0) {
-                return {
-                    ...prev,
-                    criterias: [{
-                        value: '',
-                        spellingWeight: 1,
-                        phoneticWeight: 1,
-                        minSpellingScore: 0,
-                        minPhoneticScore: 0,
-                        matchingType: 'SIMILARITY'
-                    }]
-                };
+                newCriterias = [{
+                    value: '',
+                    spellingWeight: 1,
+                    phoneticWeight: 1,
+                    minSpellingScore: 0,
+                    minPhoneticScore: 0,
+                    matchingType: 'SIMILARITY'
+                }];
             }
-            return { ...prev, criterias: newCriterias };
+            const newState = { ...prev, criterias: newCriterias };
+            onRefresh(newState);
+            return newState;
         });
-    }, [setSearchState]);
+    }, [setSearchState, onRefresh]);
+    const toggleColumn = useCallback((index: number) => {
+        setSearchState(prev => {
+            const isIncluded = prev.searchColumnIndexes.includes(index);
+            const newIndexes = isIncluded
+                ? prev.searchColumnIndexes.filter(i => i !== index)
+                : [...prev.searchColumnIndexes, index].sort((a, b) => a - b);
 
+            const newState = { ...prev, searchColumnIndexes: newIndexes };
+            onRefresh(newState);
+            return newState;
+        });
+    }, [setSearchState, onRefresh]);
     const handleExport = useCallback(async () => {
         if (!fileInfo || !searchState) return;
 
@@ -399,6 +410,26 @@ export default function Results({
                         </div>
                         <div className="card-body">
                             <div className="flex flex-col gap-md">
+                                {/* Quick Column Selection */}
+                                <div className="mb-md pb-md border-b border-subtle">
+                                    <div className="flex items-center gap-sm mb-sm text-muted" style={{ fontSize: '0.9rem' }}>
+                                        <Columns size={16} />
+                                        <span>Columns to Match:</span>
+                                    </div>
+                                    <div className="flex gap-xs flex-wrap">
+                                        {fileInfo?.headers.map((header, index) => (
+                                            <button
+                                                key={index}
+                                                className={`btn btn-sm ${searchState.searchColumnIndexes.includes(index) ? 'btn-primary' : 'btn-secondary'}`}
+                                                onClick={() => toggleColumn(index)}
+                                                style={{ fontSize: '0.75rem', padding: 'var(--space-xs) var(--space-sm)' }}
+                                            >
+                                                {header}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
                                 {searchState.criterias.map((criteria, index) => (
                                     <CriteriaRow
                                         key={index}
@@ -407,6 +438,7 @@ export default function Results({
                                         onChange={onCriteriaChange}
                                         onRemove={removeCriteria}
                                         canRemove={true}
+                                        onSearch={() => onRefresh()}
                                     />
                                 ))}
                             </div>

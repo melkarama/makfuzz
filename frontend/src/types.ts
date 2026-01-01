@@ -33,6 +33,7 @@ export interface CriteriaMatch {
 
 export interface MatchResult {
     totalScore: number;
+    lineIndex: number;
     candidateValues: string[];
     criteriaMatches: CriteriaMatch[];
 }

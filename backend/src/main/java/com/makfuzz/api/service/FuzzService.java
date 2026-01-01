@@ -118,6 +118,7 @@ public class FuzzService {
     private MatchResultDTO convertToMatchResultDTO(LineSimResult lsr) {
         MatchResultDTO matchResult = new MatchResultDTO();
         matchResult.setTotalScore(lsr.getScore());
+        matchResult.setLineIndex(lsr.getLineIndex());
         matchResult.setCandidateValues(Arrays.asList(lsr.getCandidate()));
 
         List<CriteriaMatchDTO> criteriaMatches = new ArrayList<>();
@@ -161,7 +162,7 @@ public class FuzzService {
         StringBuilder sb = new StringBuilder();
         
         // Header
-        sb.append("Score");
+        sb.append("Row #,Score");
         for (int i = 0; i < request.getCriterias().size(); i++) {
             sb.append(",Criteria_").append(i + 1).append("_Match");
             sb.append(",Spelling_%");
@@ -175,6 +176,7 @@ public class FuzzService {
         // Data rows (using ALL found results)
         for (LineSimResult lsr : searchResult.getAllFoundResults()) {
             MatchResultDTO match = convertToMatchResultDTO(lsr);
+            sb.append(match.getLineIndex()).append(",");
             sb.append(String.format("%.4f", match.getTotalScore()));
             for (CriteriaMatchDTO cm : match.getCriteriaMatches()) {
                 sb.append(",").append(escapeCSV(cm.getMatchedValue()));
@@ -197,54 +199,102 @@ public class FuzzService {
         try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Sheet sheet = workbook.createSheet("Match Results");
 
-            // Header Style
-            CellStyle headerStyle = workbook.createCellStyle();
-            headerStyle.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.getIndex());
-            headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
-            Font headerFont = workbook.createFont();
-            headerFont.setBold(true);
-            headerStyle.setFont(headerFont);
+            // Style: Synthesis Header (Royal Blue)
+            CellStyle synthesisStyle = workbook.createCellStyle();
+            synthesisStyle.setFillForegroundColor(IndexedColors.CORNFLOWER_BLUE.getIndex());
+            synthesisStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            Font synthesisFont = workbook.createFont();
+            synthesisFont.setBold(true);
+            synthesisFont.setColor(IndexedColors.WHITE.getIndex());
+            synthesisStyle.setFont(synthesisFont);
+
+            // Style: Original Header (Light Grey)
+            CellStyle originalStyle = workbook.createCellStyle();
+            originalStyle.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.getIndex());
+            originalStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            Font originalFont = workbook.createFont();
+            originalFont.setBold(true);
+            originalStyle.setFont(originalFont);
 
             // Create Header Row
             Row headerRow = sheet.createRow(0);
             int colIdx = 0;
+            
+            // Synthesis Columns
+            headerRow.createCell(colIdx++).setCellValue("Row #");
             headerRow.createCell(colIdx++).setCellValue("Score");
             for (int i = 0; i < request.getCriterias().size(); i++) {
                 headerRow.createCell(colIdx++).setCellValue("Criteria " + (i + 1) + " Match");
                 headerRow.createCell(colIdx++).setCellValue("Spelling %");
                 headerRow.createCell(colIdx++).setCellValue("Phonetic %");
             }
+            int synthesisColCount = colIdx;
+
+            // Original Columns
             for (String header : fileData.getHeaders()) {
                 headerRow.createCell(colIdx++).setCellValue(header);
             }
 
-            // Apply style to header
+            // Apply specific styles to headers
             for (int i = 0; i < colIdx; i++) {
-                headerRow.getCell(i).setCellStyle(headerStyle);
+                if (i < synthesisColCount) {
+                    headerRow.getCell(i).setCellStyle(synthesisStyle);
+                } else {
+                    headerRow.getCell(i).setCellStyle(originalStyle);
+                }
             }
 
-            // Data Rows (using ALL found results)
+            // Style: Percentage Formatting (XX.XX%)
+            CellStyle percentStyle = workbook.createCellStyle();
+            percentStyle.setDataFormat(workbook.createDataFormat().getFormat("0.00%"));
+
+            // Style: Regular Number (No % for total score if preferred, or use same)
+            // Total score is usually 0-1, so percentage is also appropriate
+
+            // Frozen Panes: Freeze synthesis columns
+            sheet.createFreezePane(synthesisColCount, 1);
+
+            // Data Rows
             int rowIdx = 1;
             for (LineSimResult lsr : searchResult.getAllFoundResults()) {
                 MatchResultDTO match = convertToMatchResultDTO(lsr);
                 Row row = sheet.createRow(rowIdx++);
                 int cIdx = 0;
-                row.createCell(cIdx++).setCellValue(match.getTotalScore());
+                
+                // Line Index Cell
+                row.createCell(cIdx++).setCellValue(match.getLineIndex());
+
+                // Total Score Cell
+                Cell totalScoreCell = row.createCell(cIdx++);
+                totalScoreCell.setCellValue(match.getTotalScore());
+                totalScoreCell.setCellStyle(percentStyle);
+
                 for (CriteriaMatchDTO cm : match.getCriteriaMatches()) {
                     row.createCell(cIdx++).setCellValue(cm.getMatchedValue() != null ? cm.getMatchedValue() : "");
-                    row.createCell(cIdx++).setCellValue(cm.getSpellingScore());
-                    row.createCell(cIdx++).setCellValue(cm.getPhoneticScore());
+                    
+                    // Spelling Score Cell
+                    Cell spellCell = row.createCell(cIdx++);
+                    spellCell.setCellValue(cm.getSpellingScore());
+                    spellCell.setCellStyle(percentStyle);
+
+                    // Phonetic Score Cell
+                    Cell phonCell = row.createCell(cIdx++);
+                    phonCell.setCellValue(cm.getPhoneticScore());
+                    phonCell.setCellStyle(percentStyle);
                 }
                 for (String val : match.getCandidateValues()) {
                     row.createCell(cIdx++).setCellValue(val != null ? val : "");
                 }
-                
-                // Safety break for Excel row limit
                 if (rowIdx >= 1048575) break;
             }
 
-            // Auto-size columns (up to first 50 columns for performance)
-            for (int i = 0; i < Math.min(colIdx, 50); i++) {
+            // Auto-filter for all columns
+            if (colIdx > 0 && rowIdx > 1) {
+                sheet.setAutoFilter(new org.apache.poi.ss.util.CellRangeAddress(0, rowIdx - 1, 0, colIdx - 1));
+            }
+
+            // Auto-size all columns
+            for (int i = 0; i < colIdx; i++) {
                 sheet.autoSizeColumn(i);
             }
 

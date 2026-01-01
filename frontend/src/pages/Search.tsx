@@ -73,35 +73,35 @@ export default function Search({
 
     const removeCriteria = useCallback((index: number) => {
         setSearchState(prev => {
-            const newCriterias = prev.criterias.filter((_, i) => i !== index);
+            let newCriterias = prev.criterias.filter((_, i) => i !== index);
             if (newCriterias.length === 0) {
-                return {
-                    ...prev,
-                    criterias: [{
-                        value: '',
-                        spellingWeight: 1,
-                        phoneticWeight: 1,
-                        minSpellingScore: 0,
-                        minPhoneticScore: 0,
-                        matchingType: 'SIMILARITY'
-                    }]
-                };
+                newCriterias = [{
+                    value: '',
+                    spellingWeight: 1,
+                    phoneticWeight: 1,
+                    minSpellingScore: 0,
+                    minPhoneticScore: 0,
+                    matchingType: 'SIMILARITY'
+                }];
             }
-            return {
-                ...prev,
-                criterias: newCriterias
-            };
+            const newState = { ...prev, criterias: newCriterias };
+            onSearchStart(newState); // Background refresh
+            return newState;
         });
-    }, [setSearchState]);
+    }, [setSearchState, onSearchStart]);
 
     const toggleColumn = useCallback((index: number) => {
-        setSearchState(prev => ({
-            ...prev,
-            searchColumnIndexes: prev.searchColumnIndexes.includes(index)
+        setSearchState(prev => {
+            const isIncluded = prev.searchColumnIndexes.includes(index);
+            const newIndexes = isIncluded
                 ? prev.searchColumnIndexes.filter(i => i !== index)
-                : [...prev.searchColumnIndexes, index].sort((a, b) => a - b)
-        }));
-    }, [setSearchState]);
+                : [...prev.searchColumnIndexes, index].sort((a, b) => a - b);
+
+            const newState = { ...prev, searchColumnIndexes: newIndexes };
+            onSearchStart(newState); // Background refresh
+            return newState;
+        });
+    }, [setSearchState, onSearchStart]);
 
     const handleSearch = useCallback(async () => {
         if (!fileInfo) {
@@ -211,6 +211,7 @@ export default function Search({
                                 onChange={updateCriteria}
                                 onRemove={removeCriteria}
                                 canRemove={searchState.criterias.length > 1}
+                                onSearch={() => handleSearch()}
                             />
                         ))}
                     </AnimatePresence>
@@ -240,10 +241,15 @@ export default function Search({
                                     onChange={(e) => {
                                         const val = parseInt(e.target.value);
                                         if (isNaN(val)) return;
-                                        setSearchState(prev => ({
-                                            ...prev,
-                                            threshold: Math.max(0, Math.min(100, val)) / 100
-                                        }));
+                                        const newVal = Math.max(0, Math.min(100, val)) / 100;
+                                        setSearchState(prev => {
+                                            const newState = { ...prev, threshold: newVal };
+                                            onSearchStart(newState);
+                                            return newState;
+                                        });
+                                    }}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') handleSearch();
                                     }}
                                 />
                                 <span className="font-bold">%</span>
@@ -255,10 +261,14 @@ export default function Search({
                             <select
                                 className="input select"
                                 value={searchState.language}
-                                onChange={(e) => setSearchState(prev => ({
-                                    ...prev,
-                                    language: e.target.value as 'en' | 'fr'
-                                }))}
+                                onChange={(e) => {
+                                    const newLang = e.target.value as 'en' | 'fr';
+                                    setSearchState(prev => {
+                                        const newState = { ...prev, language: newLang };
+                                        onSearchStart(newState);
+                                        return newState;
+                                    });
+                                }}
                             >
                                 <option value="en">English (Generic Phonetic)</option>
                                 <option value="fr">French (French Soundex)</option>

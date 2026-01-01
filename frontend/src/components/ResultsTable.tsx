@@ -1,3 +1,4 @@
+import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { MatchResult, FileInfo } from '../types';
 
@@ -30,19 +31,39 @@ export default function ResultsTable({ results, headers, criteriaCount }: Result
     }
 
     return (
-        <div className="table-container" style={{ maxHeight: '600px', overflowY: 'auto' }}>
-            <table className="table">
+        <div className="table-container" style={{ maxHeight: '600px' }}>
+            <table className="table" style={{ tableLayout: 'auto' }}>
                 <thead>
                     <tr>
-                        <th style={{ position: 'sticky', left: 0, top: 0, zIndex: 20, background: 'var(--bg-surface)' }}>
+                        <th style={{
+                            position: 'sticky',
+                            left: 0,
+                            top: 0,
+                            zIndex: 22,
+                            background: 'var(--bg-surface)',
+                            width: '80px',
+                            minWidth: '80px',
+                            borderRight: '1px solid var(--border-subtle)'
+                        }}>
+                            Row #
+                        </th>
+                        <th style={{
+                            position: 'sticky',
+                            left: '80px',
+                            top: 0,
+                            zIndex: 21,
+                            background: 'var(--bg-surface)',
+                            width: '140px',
+                            minWidth: '140px'
+                        }}>
                             Score
                         </th>
                         {Array.from({ length: criteriaCount }).map((_, i) => (
-                            <>
+                            <React.Fragment key={i}>
                                 <th key={`match-h-${i}`}>Criteria {i + 1}</th>
                                 <th key={`spell-h-${i}`}>Spell%</th>
                                 <th key={`phon-h-${i}`}>Phon%</th>
-                            </>
+                            </React.Fragment>
                         ))}
                         {headers.map((header, i) => (
                             <th key={`header-${i}`}>{header}</th>
@@ -61,7 +82,23 @@ export default function ResultsTable({ results, headers, criteriaCount }: Result
                                 position: 'sticky',
                                 left: 0,
                                 background: 'var(--bg-elevated)',
-                                zIndex: 5
+                                zIndex: 6,
+                                width: '80px',
+                                minWidth: '80px',
+                                textAlign: 'center',
+                                fontWeight: 'bold',
+                                color: 'var(--text-secondary)',
+                                borderRight: '1px solid var(--border-subtle)'
+                            }}>
+                                {result.lineIndex}
+                            </td>
+                            <td style={{
+                                position: 'sticky',
+                                left: '80px',
+                                background: 'var(--bg-elevated)',
+                                zIndex: 5,
+                                width: '140px',
+                                minWidth: '140px'
                             }}>
                                 <div className="score-cell">
                                     <div className="score-bar">

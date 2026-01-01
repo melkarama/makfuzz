@@ -7,6 +7,7 @@ import java.util.List;
 @Data
 public class MatchResultDTO {
     private double totalScore;
+    private int lineIndex;
     private List<String> candidateValues;
     private List<CriteriaMatchDTO> criteriaMatches;
 }
