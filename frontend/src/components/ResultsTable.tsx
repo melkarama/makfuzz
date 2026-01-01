@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { MatchResult, FileInfo } from '../types';
+import { toast } from 'react-hot-toast';
+import { MatchResult } from '../types';
 
 interface ResultsTableProps {
     results: MatchResult[];
@@ -78,19 +79,46 @@ const ResultsTable = React.memo(({ results, headers, criteriaCount }: ResultsTab
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: rowIndex * 0.02 }}
                         >
-                            <td style={{
-                                position: 'sticky',
-                                left: 0,
-                                background: 'var(--bg-elevated)',
-                                zIndex: 6,
-                                width: '80px',
-                                minWidth: '80px',
-                                textAlign: 'center',
-                                fontWeight: 'bold',
-                                color: 'var(--text-secondary)',
-                                borderRight: '1px solid var(--border-subtle)'
-                            }}>
+                            <td
+                                onClick={() => {
+                                    if (result.rawLine) {
+                                        toast(result.rawLine, {
+                                            duration: 6000,
+                                            icon: '📄',
+                                            style: {
+                                                maxWidth: '800px',
+                                                background: 'var(--bg-surface)',
+                                                color: 'var(--text-primary)',
+                                                border: '1px solid var(--border-glow)',
+                                                backdropFilter: 'blur(10px)',
+                                                fontFamily: 'monospace',
+                                                fontSize: '0.9rem',
+                                                wordBreak: 'break-all'
+                                            }
+                                        });
+                                    }
+                                }}
+                                style={{
+                                    position: 'sticky',
+                                    left: 0,
+                                    background: 'var(--bg-elevated)',
+                                    zIndex: 6,
+                                    width: '80px',
+                                    minWidth: '80px',
+                                    textAlign: 'center',
+                                    fontWeight: 'bold',
+                                    color: result.rawLine ? 'var(--primary-300)' : 'var(--text-secondary)',
+                                    borderRight: '1px solid var(--border-subtle)',
+                                    cursor: result.rawLine ? 'pointer' : 'default',
+                                    transition: 'all 0.2s ease'
+                                }}
+                                className={result.rawLine ? 'hover-primary' : ''}
+                                title={result.rawLine ? "Click to view original CSV line" : ""}
+                            >
                                 {result.lineIndex}
+                                {result.rawLine && (
+                                    <div style={{ fontSize: '10px', opacity: 0.5, marginTop: '2px' }}>View</div>
+                                )}
                             </td>
                             <td style={{
                                 position: 'sticky',

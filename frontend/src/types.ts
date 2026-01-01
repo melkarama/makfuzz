@@ -35,6 +35,7 @@ export interface MatchResult {
     totalScore: number;
     lineIndex: number;
     candidateValues: string[];
+    rawLine?: string;
     criteriaMatches: CriteriaMatch[];
 }
 

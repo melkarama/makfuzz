@@ -9,5 +9,6 @@ public class MatchResultDTO {
     private double totalScore;
     private int lineIndex;
     private List<String> candidateValues;
+    private String rawLine;
     private List<CriteriaMatchDTO> criteriaMatches;
 }

@@ -765,15 +765,6 @@ export default function FuzzExplorer({
                     </div>
                 </div>
 
-                <div className="stat-card">
-                    <div className="stat-icon warning">
-                        <TrendingUp size={24} />
-                    </div>
-                    <div className="stat-content">
-                        <div className="stat-value" style={{ fontSize: '1.5rem' }}>{searchResults ? formatPercent(searchResults.maxUnderThreshold) : '0%'}</div>
-                        <div className="stat-label">Near Miss</div>
-                    </div>
-                </div>
 
                 <div className="stat-card">
                     <div className="stat-icon" style={{ background: 'rgba(138, 100, 255, 0.15)', color: 'var(--primary-400)' }}>

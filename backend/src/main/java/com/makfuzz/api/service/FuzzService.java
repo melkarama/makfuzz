@@ -24,6 +24,7 @@ public class FuzzService {
         List<String[]> data = new ArrayList<>();
         List<String> headers = new ArrayList<>();
 
+        FileData fileData = new FileData();
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8))) {
             String headerLine = reader.readLine();
             if (headerLine != null) {
@@ -31,14 +32,16 @@ public class FuzzService {
             }
 
             String line;
+            List<String> rawLines = new ArrayList<>();
             while ((line = reader.readLine()) != null) {
                 if (!line.trim().isEmpty()) {
                     data.add(parseCSVLine(line));
+                    rawLines.add(line);
                 }
             }
+            fileData.setRawLines(rawLines);
         }
 
-        FileData fileData = new FileData();
         fileData.setFileName(file.getOriginalFilename());
         fileData.setHeaders(headers);
         fileData.setData(data);
@@ -59,7 +62,8 @@ public class FuzzService {
     public SearchResponseDTO search(String fileId, SearchRequestDTO request) {
         long startTime = System.currentTimeMillis();
         SearchResult result = performSearch(fileId, request);
-        SearchResponseDTO response = convertToResponseDTO(result, request.getTopN());
+        FileData fileData = fileCache.get(fileId);
+        SearchResponseDTO response = convertToResponseDTO(result, request.getTopN(), fileData);
         response.setSearchTimeMs(System.currentTimeMillis() - startTime);
         return response;
     }
@@ -92,7 +96,7 @@ public class FuzzService {
         );
     }
 
-    private SearchResponseDTO convertToResponseDTO(SearchResult result, int topN) {
+    private SearchResponseDTO convertToResponseDTO(SearchResult result, int topN, FileData fileData) {
         long startTime = System.currentTimeMillis();
         // Convert to response DTO
         SearchResponseDTO response = new SearchResponseDTO();
@@ -108,18 +112,22 @@ public class FuzzService {
 
         if (matchesToExport != null) {
             for (LineSimResult lsr : matchesToExport) {
-                matchResults.add(convertToMatchResultDTO(lsr));
+                matchResults.add(convertToMatchResultDTO(lsr, fileData));
             }
         }
         response.setResults(matchResults);
         return response;
     }
 
-    private MatchResultDTO convertToMatchResultDTO(LineSimResult lsr) {
+    private MatchResultDTO convertToMatchResultDTO(LineSimResult lsr, FileData fileData) {
         MatchResultDTO matchResult = new MatchResultDTO();
         matchResult.setTotalScore(lsr.getScore());
         matchResult.setLineIndex(lsr.getLineIndex());
         matchResult.setCandidateValues(Arrays.asList(lsr.getCandidate()));
+        
+        if (fileData != null && fileData.getRawLines() != null && lsr.getLineIndex() > 0 && lsr.getLineIndex() <= fileData.getRawLines().size()) {
+            matchResult.setRawLine(fileData.getRawLines().get(lsr.getLineIndex() - 1));
+        }
 
         List<CriteriaMatchDTO> criteriaMatches = new ArrayList<>();
         for (SimResult sr : lsr.getSimResults()) {
@@ -175,7 +183,7 @@ public class FuzzService {
 
         // Data rows (using ALL found results)
         for (LineSimResult lsr : searchResult.getAllFoundResults()) {
-            MatchResultDTO match = convertToMatchResultDTO(lsr);
+            MatchResultDTO match = convertToMatchResultDTO(lsr, fileData);
             sb.append(match.getLineIndex()).append(",");
             sb.append(String.format("%.4f", match.getTotalScore()));
             for (CriteriaMatchDTO cm : match.getCriteriaMatches()) {
@@ -257,7 +265,7 @@ public class FuzzService {
             // Data Rows
             int rowIdx = 1;
             for (LineSimResult lsr : searchResult.getAllFoundResults()) {
-                MatchResultDTO match = convertToMatchResultDTO(lsr);
+                MatchResultDTO match = convertToMatchResultDTO(lsr, fileData);
                 Row row = sheet.createRow(rowIdx++);
                 int cIdx = 0;
                 
@@ -342,6 +350,7 @@ public class FuzzService {
         private String fileName;
         private List<String> headers;
         private List<String[]> data;
+        private List<String> rawLines;
         private long fileSize;
 
         public String getFileName() { return fileName; }
@@ -350,6 +359,8 @@ public class FuzzService {
         public void setHeaders(List<String> headers) { this.headers = headers; }
         public List<String[]> getData() { return data; }
         public void setData(List<String[]> data) { this.data = data; }
+        public List<String> getRawLines() { return rawLines; }
+        public void setRawLines(List<String> rawLines) { this.rawLines = rawLines; }
         public long getFileSize() { return fileSize; }
         public void setFileSize(long fileSize) { this.fileSize = fileSize; }
     }
