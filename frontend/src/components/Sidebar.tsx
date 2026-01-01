@@ -1,16 +1,12 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
-    Home,
-    Search,
-    FileText,
-    Settings,
-    Sparkles,
-    LayoutDashboard,
-    FileSearch,
     TableProperties,
-    Cog,
-    ChevronLeft
+    Sparkles,
+    ChevronLeft,
+    ChevronRight,
+    PanelLeftClose,
+    PanelLeftOpen
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -19,17 +15,13 @@ interface SidebarProps {
 }
 
 const navItems = [
-    { path: '/', icon: LayoutDashboard, label: 'Dashboard', section: 'main' },
-    { path: '/search', icon: FileSearch, label: 'Fuzzy Search', section: 'main' },
-    { path: '/results', icon: TableProperties, label: 'Results', section: 'main' },
-    { path: '/settings', icon: Cog, label: 'Settings', section: 'settings' },
+    { path: '/', icon: TableProperties, label: 'Fuzz Explorer', section: 'main' },
 ];
 
 export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
     const location = useLocation();
 
     const mainItems = navItems.filter(i => i.section === 'main');
-    const settingsItems = navItems.filter(i => i.section === 'settings');
 
     return (
         <aside className={`sidebar ${isOpen ? 'open' : ''}`}>
@@ -50,26 +42,6 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
                 <div className="nav-section">
                     <div className="nav-section-title">Main Menu</div>
                     {mainItems.map((item) => (
-                        <NavLink
-                            key={item.path}
-                            to={item.path}
-                            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-                        >
-                            <motion.div
-                                whileHover={{ x: 4 }}
-                                whileTap={{ scale: 0.98 }}
-                                style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '100%' }}
-                            >
-                                <item.icon className="nav-item-icon" size={20} />
-                                <span>{item.label}</span>
-                            </motion.div>
-                        </NavLink>
-                    ))}
-                </div>
-
-                <div className="nav-section">
-                    <div className="nav-section-title">Configuration</div>
-                    {settingsItems.map((item) => (
                         <NavLink
                             key={item.path}
                             to={item.path}

@@ -20,20 +20,23 @@ import {
     X,
     Plus,
     Filter,
-    Columns
+    Columns,
+    Upload
 } from 'lucide-react';
 import ResultsTable from '../components/ResultsTable';
 import CriteriaRow from '../components/CriteriaRow';
+import FileUpload from '../components/FileUpload';
 import { api } from '../api';
 import { FileInfo, SearchResponse, SearchState, CriteriaInput } from '../types';
 
-interface ResultsProps {
+interface FuzzExplorerProps {
     fileInfo: FileInfo | null;
     searchResults: SearchResponse | null;
     searchState: SearchState;
     setSearchState: React.Dispatch<React.SetStateAction<SearchState>>;
     onRefresh: (state?: SearchState) => void;
     isSearching: boolean;
+    onFileUploaded: (info: FileInfo) => void;
 }
 
 const containerVariants = {
@@ -47,6 +50,12 @@ const containerVariants = {
 const itemVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0 }
+};
+
+const modalVariants = {
+    hidden: { opacity: 0, scale: 0.95, y: 20 },
+    visible: { opacity: 1, scale: 1, y: 0 },
+    exit: { opacity: 0, scale: 0.95, y: 20 }
 };
 
 function formatPercent(value: number): string {
@@ -227,18 +236,20 @@ const PaginationControls = ({
     );
 };
 
-export default function Results({
+export default function FuzzExplorer({
     fileInfo,
     searchResults,
     searchState,
     setSearchState,
     onRefresh,
-    isSearching
-}: ResultsProps) {
+    isSearching,
+    onFileUploaded
+}: FuzzExplorerProps) {
     const navigate = useNavigate();
     const [currentPage, setCurrentPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
-    const [showQuickEdit, setShowQuickEdit] = useState(false);
+    const [showQuickEdit, setShowQuickEdit] = useState(!searchResults);
+    const [showUploadModal, setShowUploadModal] = useState(false);
     const debounceTimer = useRef<any>();
 
     useEffect(() => {
@@ -361,31 +372,92 @@ export default function Results({
         setLocalThreshold(Math.round(searchState.threshold * 100).toString());
     }, [searchState.threshold]);
 
-    if (!searchResults) {
+    // If no file is uploaded, show a different empty state
+    if (!fileInfo) {
         return (
             <motion.div
                 variants={containerVariants}
                 initial="hidden"
                 animate="visible"
+                style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
             >
-                <motion.div variants={itemVariants} className="empty-state">
+                <motion.button
+                    variants={itemVariants}
+                    className="empty-state"
+                    style={{ background: 'transparent', border: 'none', cursor: 'pointer', width: '100%' }}
+                    onClick={() => setShowUploadModal(true)}
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.99 }}
+                >
                     <div className="empty-state-icon">
-                        <FileSearch size={80} />
+                        <Upload size={80} />
                     </div>
-                    <h2 className="empty-state-title">No Search Results</h2>
+                    <h2 className="empty-state-title">No Data Loaded</h2>
                     <p className="empty-state-text mb-lg">
-                        Run a fuzzy search first to see matching results here.
+                        Click anywhere to upload a CSV file and start exploring.
                     </p>
-                    <motion.button
-                        className="btn btn-primary btn-lg"
-                        onClick={() => navigate('/search')}
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                    >
-                        <FileSearch size={20} />
-                        Go to Search
-                    </motion.button>
-                </motion.div>
+                    <div className="badge badge-primary">Click to begin</div>
+                </motion.button>
+
+                {/* Floating Upload Modal */}
+                <AnimatePresence>
+                    {showUploadModal && (
+                        <div style={{
+                            position: 'fixed',
+                            inset: 0,
+                            zIndex: 1000,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            background: 'rgba(0,0,0,0.5)',
+                            backdropFilter: 'blur(10px)'
+                        }}>
+                            <motion.div
+                                variants={modalVariants}
+                                initial="hidden"
+                                animate="visible"
+                                exit="exit"
+                                className="card"
+                                style={{
+                                    width: '90%',
+                                    maxWidth: '550px',
+                                    padding: 'var(--space-xl)',
+                                    boxShadow: 'var(--shadow-2xl)',
+                                    background: 'var(--bg-glass-heavy)',
+                                    border: '1px solid var(--border-light)'
+                                }}
+                            >
+                                <div className="flex justify-between items-center mb-xl">
+                                    <div className="flex items-center gap-md">
+                                        <div className="stat-icon primary" style={{ width: 40, height: 40, borderRadius: 'var(--radius-md)' }}>
+                                            <Upload size={20} />
+                                        </div>
+                                        <div>
+                                            <h3 className="card-title" style={{ margin: 0 }}>Replace Source File</h3>
+                                            <p className="text-muted" style={{ fontSize: '0.85rem' }}>Upload a new CSV to match with current criteria</p>
+                                        </div>
+                                    </div>
+                                    <button
+                                        className="btn btn-ghost btn-icon"
+                                        style={{ width: 32, height: 32 }}
+                                        onClick={() => setShowUploadModal(false)}
+                                    >
+                                        <X size={20} />
+                                    </button>
+                                </div>
+                                <div className="card-body" style={{ padding: 0 }}>
+                                    <FileUpload
+                                        onFileUploaded={(info) => {
+                                            onFileUploaded(info);
+                                            setShowUploadModal(false);
+                                        }}
+                                        currentFile={null}
+                                    />
+                                </div>
+                            </motion.div>
+                        </div>
+                    )}
+                </AnimatePresence>
             </motion.div>
         );
     }
@@ -398,22 +470,84 @@ export default function Results({
             initial="hidden"
             animate="visible"
         >
+            {/* Replace File Modal (for when header button is clicked) */}
+            <AnimatePresence>
+                {showUploadModal && (
+                    <div style={{
+                        position: 'fixed',
+                        inset: 0,
+                        zIndex: 1000,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        background: 'rgba(0,0,0,0.5)',
+                        backdropFilter: 'blur(10px)'
+                    }}>
+                        <motion.div
+                            variants={modalVariants}
+                            initial="hidden"
+                            animate="visible"
+                            exit="exit"
+                            className="card"
+                            style={{
+                                width: '90%',
+                                maxWidth: '550px',
+                                padding: 'var(--space-xl)',
+                                boxShadow: 'var(--shadow-2xl)',
+                                background: 'var(--bg-glass-heavy)',
+                                border: '1px solid var(--border-light)'
+                            }}
+                        >
+                            <div className="flex justify-between items-center mb-xl">
+                                <div className="flex items-center gap-md">
+                                    <div className="stat-icon primary" style={{ width: 40, height: 40, borderRadius: 'var(--radius-md)' }}>
+                                        <Upload size={20} />
+                                    </div>
+                                    <div>
+                                        <h3 className="card-title" style={{ margin: 0 }}>Replace Source File</h3>
+                                        <p className="text-muted" style={{ fontSize: '0.85rem' }}>Current: {fileInfo.fileName}</p>
+                                    </div>
+                                </div>
+                                <button
+                                    className="btn btn-ghost btn-icon"
+                                    style={{ width: 32, height: 32 }}
+                                    onClick={() => setShowUploadModal(false)}
+                                >
+                                    <X size={20} />
+                                </button>
+                            </div>
+                            <div className="card-body" style={{ padding: 0 }}>
+                                <FileUpload
+                                    onFileUploaded={(info) => {
+                                        onFileUploaded(info);
+                                        setShowUploadModal(false);
+                                    }}
+                                    currentFile={null}
+                                />
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
             {/* Header Actions */}
             <motion.div variants={itemVariants} className="flex justify-between items-center mb-lg">
                 <div className="flex items-center gap-md">
-                    <motion.button
-                        className="btn btn-ghost"
-                        onClick={() => navigate('/search')}
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                    >
-                        <ArrowLeft size={18} />
-                        Back to Search
-                    </motion.button>
-                    <h2>Search Results</h2>
+                    <h2>Fuzz Explorer</h2>
+                    <div className="badge badge-primary">{fileInfo.fileName}</div>
                 </div>
 
                 <div className="flex items-center gap-md">
+                    <motion.button
+                        className="btn btn-ghost"
+                        onClick={() => setShowUploadModal(true)}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                    >
+                        <Upload size={18} />
+                        Replace File
+                    </motion.button>
+
                     <motion.button
                         className="btn btn-ghost"
                         style={{
@@ -426,7 +560,7 @@ export default function Results({
                         whileTap={{ scale: 0.98 }}
                     >
                         <Settings size={18} />
-                        {showQuickEdit ? 'Hide Edit' : 'Quick Edit'}
+                        {showQuickEdit ? 'Hide Tools' : 'Configure Search'}
                     </motion.button>
 
                     <motion.button
@@ -462,7 +596,7 @@ export default function Results({
                         <div className="card-header flex justify-between items-center" style={{ background: 'var(--bg-glass-strong)' }}>
                             <h3 className="card-title">
                                 <Settings size={20} />
-                                Quick Criteria Edit
+                                Configuration
                             </h3>
                             <div className="flex items-center gap-sm">
                                 <motion.button
@@ -478,12 +612,12 @@ export default function Results({
                                         {isSearching ? (
                                             <>
                                                 <div className="loading-spinner" style={{ width: 14, height: 14, borderWidth: 2 }} />
-                                                Refreshing...
+                                                Processing...
                                             </>
                                         ) : (
                                             <>
                                                 <Filter size={16} />
-                                                Apply & Refresh
+                                                Run Search
                                             </>
                                         )}
                                     </div>
@@ -499,7 +633,7 @@ export default function Results({
                                 <div className="mb-md pb-md border-b border-subtle">
                                     <div className="flex items-center gap-sm mb-sm text-muted" style={{ fontSize: '0.9rem' }}>
                                         <Columns size={16} />
-                                        <span>Columns to Match:</span>
+                                        <span>Columns to Search:</span>
                                     </div>
                                     <div className="flex gap-xs flex-wrap">
                                         {fileInfo?.headers.map((header, index) => (
@@ -549,7 +683,7 @@ export default function Results({
                         <Target size={24} />
                     </div>
                     <div className="stat-content">
-                        <div className="stat-value" style={{ fontSize: '1.5rem' }}>{searchResults.totalFound.toLocaleString()}</div>
+                        <div className="stat-value" style={{ fontSize: '1.5rem' }}>{searchResults?.totalFound.toLocaleString() || 0}</div>
                         <div className="stat-label">Matches</div>
                     </div>
                 </div>
@@ -559,7 +693,7 @@ export default function Results({
                         <BarChart3 size={24} />
                     </div>
                     <div className="stat-content">
-                        <div className="stat-value" style={{ fontSize: '1.5rem' }}>{searchResults.totalResults.toLocaleString()}</div>
+                        <div className="stat-value" style={{ fontSize: '1.5rem' }}>{searchResults?.totalResults.toLocaleString() || fileInfo.totalRows.toLocaleString()}</div>
                         <div className="stat-label">Total Records</div>
                     </div>
                 </div>
@@ -570,7 +704,7 @@ export default function Results({
                     </div>
                     <div className="stat-content">
                         <div className="stat-value" style={{ fontSize: '1.5rem' }}>
-                            {searchResults.totalResults > 0
+                            {searchResults && searchResults.totalResults > 0
                                 ? ((searchResults.totalFound / searchResults.totalResults) * 100).toFixed(1)
                                 : 0}%
                         </div>
@@ -583,7 +717,7 @@ export default function Results({
                         <TrendingUp size={24} />
                     </div>
                     <div className="stat-content">
-                        <div className="stat-value" style={{ fontSize: '1.5rem' }}>{formatPercent(searchResults.maxAboveThreshold)}</div>
+                        <div className="stat-value" style={{ fontSize: '1.5rem' }}>{searchResults ? formatPercent(searchResults.maxAboveThreshold) : '0%'}</div>
                         <div className="stat-label">Best Match</div>
                     </div>
                 </div>
@@ -593,7 +727,7 @@ export default function Results({
                         <TrendingDown size={24} />
                     </div>
                     <div className="stat-content">
-                        <div className="stat-value" style={{ fontSize: '1.5rem' }}>{formatPercent(searchResults.minAboveThreshold)}</div>
+                        <div className="stat-value" style={{ fontSize: '1.5rem' }}>{searchResults ? formatPercent(searchResults.minAboveThreshold) : '0%'}</div>
                         <div className="stat-label">Min Match</div>
                     </div>
                 </div>
@@ -603,7 +737,7 @@ export default function Results({
                         <TrendingUp size={24} />
                     </div>
                     <div className="stat-content">
-                        <div className="stat-value" style={{ fontSize: '1.5rem' }}>{formatPercent(searchResults.maxUnderThreshold)}</div>
+                        <div className="stat-value" style={{ fontSize: '1.5rem' }}>{searchResults ? formatPercent(searchResults.maxUnderThreshold) : '0%'}</div>
                         <div className="stat-label">Near Miss</div>
                     </div>
                 </div>
@@ -613,7 +747,7 @@ export default function Results({
                         <Clock size={24} />
                     </div>
                     <div className="stat-content">
-                        <div className="stat-value" style={{ fontSize: '1.5rem' }}>{searchResults.searchTimeMs}ms</div>
+                        <div className="stat-value" style={{ fontSize: '1.5rem' }}>{searchResults?.searchTimeMs || 0}ms</div>
                         <div className="stat-label">Time</div>
                     </div>
                 </div>
@@ -625,7 +759,7 @@ export default function Results({
                 <div className="card-header flex justify-between items-center">
                     <h3 className={`card-title ${isSearching ? 'searching-pulse' : ''}`}>
                         <FileSearch size={20} />
-                        Match Results ({searchResults.totalFound.toLocaleString()} found)
+                        Matching Rows ({searchResults?.totalFound.toLocaleString() || 0})
                     </h3>
                     <PaginationControls
                         localThreshold={localThreshold}
@@ -652,7 +786,7 @@ export default function Results({
                 {/* Pagination Footer */}
                 <div className="card-footer flex justify-between items-center">
                     <div className="text-muted" style={{ fontSize: '0.85rem' }}>
-                        Showing {Math.min(searchResults.results.length, (currentPage - 1) * pageSize + 1)} to {Math.min(searchResults.results.length, currentPage * pageSize)} of {searchResults.results.length} matches
+                        Showing {searchResults ? Math.min(searchResults.results.length, (currentPage - 1) * pageSize + 1) : 0} to {searchResults ? Math.min(searchResults.results.length, currentPage * pageSize) : 0} of {searchResults?.results.length || 0} matches
                     </div>
                     <PaginationControls
                         showSettings={false}
@@ -672,4 +806,6 @@ export default function Results({
         </motion.div>
     );
 }
+
+
 
