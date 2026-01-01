@@ -14,6 +14,7 @@ interface CriteriaRowProps {
 
 export default function CriteriaRow({ criteria, index, onChange, onRemove, canRemove, onSearch }: CriteriaRowProps) {
     const debounceTimer = useRef<any>();
+    const isKeyDown = useRef(false);
 
     // Local state for smooth typing - decoupled from expensive parent re-renders
     const [localSpellWeight, setLocalSpellWeight] = useState(criteria.spellingWeight.toString());
@@ -61,10 +62,15 @@ export default function CriteriaRow({ criteria, index, onChange, onRemove, canRe
     };
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
+        isKeyDown.current = true;
         if (e.key === 'Enter' && onSearch) {
             if (debounceTimer.current) clearTimeout(debounceTimer.current);
             onSearch();
         }
+    };
+
+    const handleKeyUp = () => {
+        isKeyDown.current = false;
     };
 
     return (
@@ -87,6 +93,7 @@ export default function CriteriaRow({ criteria, index, onChange, onRemove, canRe
                         onChange(index, { ...criteria, value: e.target.value });
                     }}
                     onKeyDown={handleKeyDown}
+                    onKeyUp={handleKeyUp}
                 />
             </div>
 
@@ -103,8 +110,10 @@ export default function CriteriaRow({ criteria, index, onChange, onRemove, canRe
                     onChange={(e) => {
                         setLocalSpellWeight(e.target.value);
                         triggerUpdate('spellingWeight', e.target.value);
+                        if (!isKeyDown.current && onSearch) onSearch();
                     }}
                     onKeyDown={handleKeyDown}
+                    onKeyUp={handleKeyUp}
                 />
             </div>
 
@@ -121,8 +130,10 @@ export default function CriteriaRow({ criteria, index, onChange, onRemove, canRe
                     onChange={(e) => {
                         setLocalPhonWeight(e.target.value);
                         triggerUpdate('phoneticWeight', e.target.value);
+                        if (!isKeyDown.current && onSearch) onSearch();
                     }}
                     onKeyDown={handleKeyDown}
+                    onKeyUp={handleKeyUp}
                 />
             </div>
 
@@ -139,8 +150,10 @@ export default function CriteriaRow({ criteria, index, onChange, onRemove, canRe
                     onChange={(e) => {
                         setLocalMinSpell(e.target.value);
                         triggerUpdate('minSpellingScore', e.target.value);
+                        if (!isKeyDown.current && onSearch) onSearch();
                     }}
                     onKeyDown={handleKeyDown}
+                    onKeyUp={handleKeyUp}
                 />
             </div>
 
@@ -157,8 +170,10 @@ export default function CriteriaRow({ criteria, index, onChange, onRemove, canRe
                     onChange={(e) => {
                         setLocalMinPhon(e.target.value);
                         triggerUpdate('minPhoneticScore', e.target.value);
+                        if (!isKeyDown.current && onSearch) onSearch();
                     }}
                     onKeyDown={handleKeyDown}
+                    onKeyUp={handleKeyUp}
                 />
             </div>
 

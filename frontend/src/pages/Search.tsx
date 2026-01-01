@@ -109,6 +109,8 @@ export default function Search({
         setLocalThreshold(Math.round(searchState.threshold * 100).toString());
     }, [searchState.threshold]);
 
+    const isKeyDown = useRef(false);
+
     const handleSearch = useCallback(async () => {
         if (!fileInfo) {
             setError('Please upload a file first');
@@ -148,7 +150,13 @@ export default function Search({
         setLocalThreshold(e.target.value);
         const val = parseInt(e.target.value);
         if (!isNaN(val)) {
-            setSearchState(prev => ({ ...prev, threshold: Math.max(0, Math.min(100, val)) / 100 }));
+            const newVal = Math.max(0, Math.min(100, val)) / 100;
+            setSearchState(prev => ({ ...prev, threshold: newVal }));
+
+            // If mouse click (arrows), refresh immediately
+            if (!isKeyDown.current) {
+                handleSearch();
+            }
         }
     };
 
@@ -265,12 +273,16 @@ export default function Search({
                                     max="100"
                                     step="5"
                                     value={localThreshold}
-                                    onChange={handleThresholdChange}
                                     onKeyDown={(e) => {
+                                        isKeyDown.current = true;
                                         if (e.key === 'Enter') {
                                             handleSearch();
                                         }
                                     }}
+                                    onKeyUp={() => {
+                                        isKeyDown.current = false;
+                                    }}
+                                    onChange={handleThresholdChange}
                                 />
                                 <span className="font-bold">%</span>
                             </div>
